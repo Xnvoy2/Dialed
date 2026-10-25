@@ -1,0 +1,544 @@
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import React, { useState } from 'react';
+import { ActionSheetIOS, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
+import {
+  DayKey,
+  formatDayLong,
+  formatDayShort,
+  startOfWeek,
+  weekDays,
+  weekdayInitial,
+} from '../../domain/dates';
+import { formatCountdown, formatMinutes, remainingMs } from '../../domain/focus';
+import { describeSchedule, isDueOn, weeklyCount } from '../../domain/habits';
+import { focusStreak } from '../../domain/streaks';
+import { checkIn, histories, listHabits, undoCheckIn } from '../../repos/habits';
+import { focusDays, focusSecondsByDay, focusSecondsForTask, getOpenSession } from '../../repos/sessions';
+import {
+  Task,
+  deleteTask,
+  moveTask,
+  moveTasksToDay,
+  setTaskCompleted,
+  tasksForDay,
+  unfinishedBefore,
+} from '../../repos/tasks';
+import { useApp, useNow, useQuery } from '../../state/AppProvider';
+import {
+  Card,
+  CheckCircle,
+  EmptyState,
+  IconButton,
+  PillMeter,
+  ProgressBar,
+  Ring,
+  RingIcon,
+  Row,
+  SectionHeader,
+  SmallButton,
+  T,
+  Tiles,
+} from '../../ui/components';
+import { useHaptics } from '../../ui/haptics';
+import { RollingNumber } from '../../ui/RollingNumber';
+import { Screen } from '../../ui/Screen';
+import { SIDE, TILE_GAP, colors, radius, space } from '../../ui/theme';
+
+function greeting(hour: number): string {
+  if (hour < 5) return 'Good night';
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+export default function TodayScreen() {
+  const { db, today, prefs, refresh } = useApp();
+  const haptics = useHaptics();
+  const [reordering, setReordering] = useState(false);
+  const [showDone, setShowDone] = useState(false);
+
+  const tasks = useQuery((d, t) => tasksForDay(d, t));
+  const carry = useQuery((d, t) => unfinishedBefore(d, t));
+  const focusedToday = useQuery((d, t) => focusSecondsByDay(d, t, t).get(t) ?? 0);
+  const taskFocus = useQuery((d) => new Map(tasks.map((x) => [x.id, focusSecondsForTask(d, x.id)])), [tasks]);
+  const open = useQuery((d) => getOpenSession(d));
+  const days = useQuery((d) => focusDays(d));
+  const habitsToday = useQuery(
+    (d, t) => {
+      const all = listHabits(d);
+      const h = histories(d, all.map((x) => x.id));
+      return all
+        .map((habit) => ({ habit, history: h.get(habit.id)! }))
+        .filter(({ habit, history }) => isDueOn(habit, history, t, prefs.weekStart));
+    },
+    [prefs.weekStart],
+  );
+
+  const openTasks = tasks.filter((t) => !t.completedAt);
+  const doneTasks = tasks.filter((t) => t.completedAt);
+  const habitsDone = habitsToday.filter(({ history }) => history.checkins.has(today)).length;
+  const next = openTasks[0];
+
+  const toggleTask = (t: Task) => {
+    setTaskCompleted(db, t.id, !t.completedAt);
+    t.completedAt ? haptics.select() : haptics.success();
+    refresh();
+  };
+
+  const newTask = () => router.push({ pathname: '/task/[id]', params: { id: 'new' } });
+
+  const taskMenu = (t: Task) => {
+    const actions: [string, () => void, boolean?][] = [
+      ['Edit', () => router.push({ pathname: '/task/[id]', params: { id: t.id } })],
+      ['Focus on this', () => router.push({ pathname: '/focus', params: { taskId: t.id } })],
+      ['Reorder tasks', () => setReordering(true)],
+      [
+        'Delete',
+        () =>
+          Alert.alert('Delete task?', `“${t.title}” will be removed. Focus history keeps its title.`, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: () => (deleteTask(db, t.id), refresh()) },
+          ]),
+        true,
+      ],
+    ];
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          title: t.title,
+          options: [...actions.map((a) => a[0]), 'Cancel'],
+          destructiveButtonIndex: actions.findIndex((a) => a[2]),
+          cancelButtonIndex: actions.length,
+          userInterfaceStyle: 'dark',
+        },
+        (i) => actions[i]?.[1](),
+      );
+    } else {
+      Alert.alert(t.title, undefined, [...actions.map(([text, onPress]) => ({ text, onPress })), { text: 'Cancel', style: 'cancel' }]);
+    }
+  };
+
+  return (
+    <Screen title="Today" subtitle={`${greeting(new Date().getHours())} · ${formatDayLong(today)}`}>
+      <View style={{ gap: TILE_GAP }}>
+        {open ? <ActiveSessionBanner /> : null}
+
+        <HeroCard
+          done={doneTasks.length}
+          total={tasks.length}
+          focusedSeconds={focusedToday}
+          habitsDone={habitsDone}
+          habitsTotal={habitsToday.length}
+        />
+
+        <FocusWeekCard days={days} />
+
+        {next && !open ? (
+          <NextUpTile task={next} focusedSeconds={taskFocus.get(next.id) ?? 0} remaining={openTasks.length} />
+        ) : null}
+      </View>
+
+      {carry.length > 0 ? (
+        <>
+          <SectionHeader
+            title="From earlier"
+            action={carry.length > 1 ? 'Move all' : undefined}
+            onAction={() => {
+              moveTasksToDay(db, carry.map((t) => t.id), today);
+              haptics.select();
+              refresh();
+            }}
+          />
+          <Tiles>
+            {carry.map((t) => (
+              <Row
+                key={t.id}
+                title={t.title}
+                subtitle={`Planned ${formatDayShort(t.day)}`}
+                leading={<CheckCircle checked={false} onPress={() => toggleTask(t)} label={`Complete ${t.title}`} />}
+                trailing={
+                  <SmallButton
+                    title="Today"
+                    icon="arrow-down"
+                    onPress={() => {
+                      moveTasksToDay(db, [t.id], today);
+                      haptics.select();
+                      refresh();
+                    }}
+                  />
+                }
+                onLongPress={() => taskMenu(t)}
+              />
+            ))}
+          </Tiles>
+        </>
+      ) : null}
+
+      <SectionHeader
+        title="Plan"
+        action={reordering ? 'Done' : 'Add'}
+        onAction={reordering ? () => setReordering(false) : newTask}
+      />
+      {openTasks.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={doneTasks.length ? 'checkmark-done-outline' : 'list-outline'}
+            title={doneTasks.length ? 'Everything planned is done' : 'Nothing planned yet'}
+            body={doneTasks.length ? 'Add another task or take the win.' : 'Add what you want to get done today, or just start focusing.'}
+            actions={
+              <>
+                <SmallButton title="Add a task" icon="add" onPress={newTask} />
+                <SmallButton title="Just focus" icon="timer-outline" onPress={() => router.push('/focus')} />
+              </>
+            }
+          />
+        </Card>
+      ) : (
+        <Tiles>
+          {openTasks.map((t, i) => (
+            <Row
+              key={t.id}
+              title={t.title}
+              subtitle={taskSubtitle(t, taskFocus.get(t.id) ?? 0)}
+              leading={<CheckCircle checked={false} onPress={() => toggleTask(t)} label={`Complete ${t.title}`} />}
+              onPress={reordering ? undefined : () => router.push({ pathname: '/task/[id]', params: { id: t.id } })}
+              onLongPress={reordering ? undefined : () => taskMenu(t)}
+              accessibilityHint="Opens the task. Long press for more actions."
+              trailing={
+                reordering ? (
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    <IconButton
+                      name="chevron-up"
+                      label={`Move ${t.title} up`}
+                      size={36}
+                      onPress={() => (i > 0 ? (moveTask(db, t.id, -1), haptics.select(), refresh()) : undefined)}
+                      style={i === 0 ? { opacity: 0.3 } : undefined}
+                    />
+                    <IconButton
+                      name="chevron-down"
+                      label={`Move ${t.title} down`}
+                      size={36}
+                      onPress={() =>
+                        i < openTasks.length - 1 ? (moveTask(db, t.id, 1), haptics.select(), refresh()) : undefined
+                      }
+                      style={i === openTasks.length - 1 ? { opacity: 0.3 } : undefined}
+                    />
+                  </View>
+                ) : (
+                  <IconButton
+                    name="play"
+                    label={`Focus on ${t.title}`}
+                    size={36}
+                    onPress={() => router.push({ pathname: '/focus', params: { taskId: t.id } })}
+                  />
+                )
+              }
+            />
+          ))}
+        </Tiles>
+      )}
+
+      {doneTasks.length > 0 ? (
+        <Pressable
+          onPress={() => setShowDone((s) => !s)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showDone }}
+          style={styles.doneToggle}
+        >
+          <T v="subhead" color={colors.secondary}>
+            Done · {doneTasks.length}
+          </T>
+          <Ionicons name={showDone ? 'chevron-up' : 'chevron-down'} size={14} color={colors.secondary} />
+        </Pressable>
+      ) : null}
+      {showDone && doneTasks.length > 0 ? (
+        <Tiles>
+          {doneTasks.map((t) => (
+            <Row
+              key={t.id}
+              title={t.title}
+              muted
+              subtitle={taskSubtitle(t, taskFocus.get(t.id) ?? 0)}
+              leading={<CheckCircle checked onPress={() => toggleTask(t)} label={`Mark ${t.title} not done`} />}
+              onLongPress={() => taskMenu(t)}
+            />
+          ))}
+        </Tiles>
+      ) : null}
+
+      <SectionHeader title="Habits" action="All" onAction={() => router.navigate('/habits')} />
+      {habitsToday.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon="repeat-outline"
+            title="No habits scheduled today"
+            body="Habits you schedule for today show up here."
+            actions={
+              <SmallButton
+                title="Create a habit"
+                icon="add"
+                onPress={() => router.push({ pathname: '/habit/edit/[id]', params: { id: 'new' } })}
+              />
+            }
+          />
+        </Card>
+      ) : (
+        <Tiles>
+          {habitsToday.map(({ habit, history }) => {
+            const done = history.checkins.has(today);
+            const sub =
+              habit.frequency === 'weekly'
+                ? `${weeklyCount(history, startOfWeek(today, prefs.weekStart))} of ${habit.weeklyTarget} this week`
+                : describeSchedule(habit);
+            return (
+              <Row
+                key={habit.id}
+                title={habit.name}
+                subtitle={sub}
+                muted={done}
+                leading={
+                  <CheckCircle
+                    checked={done}
+                    label={done ? `Undo ${habit.name} check-in` : `Check in ${habit.name}`}
+                    onPress={() => {
+                      if (done) {
+                        undoCheckIn(db, habit.id, today);
+                        haptics.select();
+                      } else {
+                        checkIn(db, habit.id, today, today);
+                        haptics.success();
+                      }
+                      refresh();
+                    }}
+                  />
+                }
+                onPress={() => router.push({ pathname: '/habit/[id]', params: { id: habit.id } })}
+                chevron
+              />
+            );
+          })}
+        </Tiles>
+      )}
+    </Screen>
+  );
+}
+
+function taskSubtitle(t: Task, focusedSeconds: number): string | null {
+  const parts: string[] = [];
+  if (t.estimateMinutes) parts.push(`~${formatMinutes(t.estimateMinutes * 60)}`);
+  if (focusedSeconds >= 60) parts.push(`${formatMinutes(focusedSeconds)} focused`);
+  if (t.notes) parts.push(t.notes.split('\n')[0]);
+  return parts.length ? parts.join(' · ') : null;
+}
+
+function HeroCard({
+  done,
+  total,
+  focusedSeconds,
+  habitsDone,
+  habitsTotal,
+}: {
+  done: number;
+  total: number;
+  focusedSeconds: number;
+  habitsDone: number;
+  habitsTotal: number;
+}) {
+  const minutes = Math.floor(focusedSeconds / 60);
+  return (
+    <Card style={{ gap: space.l, padding: space.xl }}>
+      <View
+        style={{ flexDirection: 'row', alignItems: 'center', gap: space.xl }}
+        accessible
+        accessibilityLabel={`${done} of ${total} tasks done. ${minutes} minutes focused today. ${habitsDone} of ${habitsTotal} habits done.`}
+      >
+        <Ring size={132} stroke={10} progress={total ? done / total : 0}>
+          <RollingNumber value={done} v="display" />
+          <T v="footnote" color={colors.secondary} style={{ marginTop: -2 }}>
+            of {total} {total === 1 ? 'task' : 'tasks'}
+          </T>
+        </Ring>
+        <View style={{ flex: 1, alignItems: 'flex-end', gap: space.l }}>
+          <View style={{ alignItems: 'flex-end' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+              <RollingNumber value={minutes} v="title2" />
+              <T v="subhead" color={colors.secondary}>
+                min
+              </T>
+            </View>
+            <T v="footnote" color={colors.secondary}>
+              focused today
+            </T>
+          </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <T v="title2" style={{ fontVariant: ['tabular-nums'] }}>
+              {habitsDone}
+              <T v="subhead" color={colors.secondary}>
+                {' '}
+                of {habitsTotal}
+              </T>
+            </T>
+            <T v="footnote" color={colors.secondary}>
+              habits done
+            </T>
+          </View>
+        </View>
+      </View>
+      {habitsTotal > 1 ? <PillMeter done={habitsDone} total={habitsTotal} /> : null}
+    </Card>
+  );
+}
+
+/** Days this week with at least a minute of focus, plus the current and best streak. */
+function FocusWeekCard({ days }: { days: ReadonlySet<DayKey> }) {
+  const { today, prefs } = useApp();
+  const week = weekDays(startOfWeek(today, prefs.weekStart));
+  const { current, best } = focusStreak(days, today);
+  return (
+    <Card onPress={() => router.navigate('/progress')} accessibilityLabel={`Focus streak ${current} days, best ${best}. Opens progress.`}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: space.m }}>
+        <T v="headline" style={{ flex: 1 }}>
+          {current > 0 ? `${current}-day focus streak` : 'No focus streak yet'}
+        </T>
+        <T v="subhead" color={colors.secondary}>
+          Best {best}
+        </T>
+        <Ionicons name="chevron-forward" size={14} color={colors.secondary} style={{ marginLeft: 2 }} />
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        {week.map((d) => {
+          const hit = days.has(d);
+          const isToday = d === today;
+          const future = d > today;
+          return (
+            <View key={d} style={{ alignItems: 'center', gap: 6 }}>
+              <T v="caption" color={isToday ? colors.text : colors.tertiary} style={isToday ? { fontWeight: '700' } : undefined}>
+                {weekdayInitial(d)}
+              </T>
+              <View
+                style={[
+                  styles.dayDot,
+                  hit && { backgroundColor: colors.text },
+                  !hit && !future && !isToday && { backgroundColor: colors.track },
+                  !hit && isToday && { borderWidth: 2, borderColor: colors.text },
+                  future && { borderWidth: 1, borderColor: colors.border },
+                ]}
+              >
+                {hit ? <Ionicons name="checkmark" size={18} color={colors.onPrimary} /> : null}
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </Card>
+  );
+}
+
+function NextUpTile({ task, focusedSeconds, remaining }: { task: Task; focusedSeconds: number; remaining: number }) {
+  const est = task.estimateMinutes ? task.estimateMinutes * 60 : 0;
+  const progress = est ? Math.min(1, focusedSeconds / est) : 0;
+  return (
+    <Card
+      onPress={() => router.push({ pathname: '/focus', params: { taskId: task.id } })}
+      accessibilityLabel={`Next up: ${task.title}. Start focusing.`}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m }}
+    >
+      <RingIcon name="play" progress={progress} size={44} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <View style={{ flexDirection: 'row' }}>
+          <T v="footnote" color={colors.secondary} style={{ flex: 1 }}>
+            Next up
+          </T>
+          <T v="footnote" color={colors.secondary}>
+            {est ? `${Math.floor(focusedSeconds / 60)} of ${task.estimateMinutes} min` : `${remaining} open`}
+          </T>
+        </View>
+        <T v="headline" numberOfLines={1}>
+          {task.title}
+        </T>
+        {est ? (
+          <View style={{ marginTop: 6 }}>
+            <ProgressBar progress={progress} />
+          </View>
+        ) : null}
+      </View>
+      <Ionicons name="chevron-forward" size={16} color={colors.tertiary} />
+    </Card>
+  );
+}
+
+function ActiveSessionBanner() {
+  const session = useQuery((d) => getOpenSession(d));
+  const now = useNow(1000, session?.status === 'running');
+  if (!session) return null;
+  const label = session.kind === 'break' ? 'Break' : session.taskTitle ?? 'Focus';
+  const left = formatCountdown(remainingMs(session, now));
+  return (
+    <Pressable
+      onPress={() => router.push('/focus')}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${session.status === 'paused' ? 'paused' : `${left} left`}. Open timer.`}
+      style={({ pressed }) => [styles.banner, pressed && { opacity: 0.85 }]}
+    >
+      <View style={styles.bannerIcon}>
+        <Ionicons name={session.status === 'paused' ? 'pause' : 'hourglass-outline'} size={20} color={colors.text} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <T v="headline" color={colors.onPrimary} numberOfLines={1}>
+          {label}
+        </T>
+        <T v="footnote" color="#46464B">
+          {session.status === 'paused' ? 'Paused' : session.kind === 'break' ? 'On a break' : 'Focusing now'}
+        </T>
+      </View>
+      <View style={styles.bannerPill}>
+        <T v="subhead" color={colors.onPrimary} style={{ fontWeight: '700', fontVariant: ['tabular-nums'] }}>
+          {left}
+        </T>
+      </View>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  dayDot: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  banner: {
+    marginHorizontal: SIDE - 4,
+    padding: space.m,
+    borderRadius: radius.l,
+    backgroundColor: colors.text,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.m,
+  },
+  bannerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.onPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bannerPill: {
+    paddingHorizontal: space.m,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+  },
+  doneToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: SIDE,
+    paddingTop: space.l,
+    paddingBottom: space.s,
+    minHeight: 44,
+  },
+});
