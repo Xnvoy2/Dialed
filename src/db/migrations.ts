@@ -92,6 +92,17 @@ CREATE TABLE habit_rest_days (
 );
 `,
   },
+  {
+    version: 2,
+    sql: `
+-- Lock-in mode: the user's own reason (shown on the shield), and what the
+-- shield recorded. Counts only, never which app was opened.
+ALTER TABLE focus_sessions ADD COLUMN reason TEXT;
+ALTER TABLE focus_sessions ADD COLUMN blocking_error TEXT;
+ALTER TABLE focus_sessions ADD COLUMN back_to_focus_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE focus_sessions ADD COLUMN deliberate_exit_count INTEGER NOT NULL DEFAULT 0;
+`,
+  },
 ];
 
 export function currentVersion(db: Db): number {

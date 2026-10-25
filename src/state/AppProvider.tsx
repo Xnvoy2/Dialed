@@ -8,6 +8,7 @@ import { blocking } from '../native/blocking';
 import { cancelSessionEnd } from '../native/notifications';
 import { Preferences, readPreferences, writePreferences } from '../repos/preferences';
 import { getOpenSession, reconcileOpenSession } from '../repos/sessions';
+import { applyShield, syncShieldActivity } from './shield';
 
 interface AppContextValue {
   db: Db;
@@ -63,6 +64,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setToday(dayKeyFor());
       const finished = reconcileOpenSession(db);
       if (finished) {
+        syncShieldActivity(db, finished);
         await cancelSessionEnd();
         if (finished.kind === 'focus') setJustCompletedId(finished.id);
       }
@@ -70,6 +72,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const diag = blocking.diagnostics();
       if (diag?.shielded && (!open || open.status !== 'running')) {
         await blocking.stopShield();
+      }
+      // The adult filter is meant to stay on; re-apply if Screen Time dropped it.
+      const p = readPreferences(db);
+      if (p.adultFilter && !blocking.adultFilterOn() && blocking.availability().state === 'approved') {
+        await blocking.setAdultFilter(true).catch(() => {});
+      }
+      if (open?.status === 'running' && open.blockingRequested) {
+        syncShieldActivity(db, open);
+        // Re-block if the shield is missing, or a 5-minute exemption has run out
+        // and the monitor extension didn't get to it.
+        const grace = blocking.activity()?.graceUntilMs;
+        const graceOver = grace != null && grace <= Date.now();
+        if (graceOver || !diag?.shielded) await applyShield(db, open, false);
       }
       refresh();
     } finally {

@@ -20,6 +20,18 @@ export interface Preferences {
   haptics: boolean;
   /** Development builds only. Ignored in production. */
   demoRewards: boolean;
+  /** Sign in with Apple's stable user id. Stored on this phone only. */
+  appleUserId: string | null;
+  /** Name Apple shared on first sign-in, if any. */
+  displayName: string | null;
+  /** Arc set up by the questionnaire. */
+  arcStart: string | null;
+  arcDays: number;
+  goals: string[];
+  /** The user's "why": the default lock-in reason shown on the shield. */
+  why: string | null;
+  /** Always-on Screen Time adult-website filter. */
+  adultFilter: boolean;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -34,6 +46,13 @@ export const DEFAULT_PREFERENCES: Preferences = {
   motion: 'system',
   haptics: true,
   demoRewards: false,
+  appleUserId: null,
+  displayName: null,
+  arcStart: null,
+  arcDays: 90,
+  goals: [],
+  why: null,
+  adultFilter: false,
 };
 
 export function readPreferences(db: Db): Preferences {

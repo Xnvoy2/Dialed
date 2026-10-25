@@ -12,6 +12,8 @@ import {
 } from '../../domain/dates';
 import { formatCountdown, formatMinutes, remainingMs } from '../../domain/focus';
 import { describeSchedule, isDueOn, weeklyCount } from '../../domain/habits';
+import { arcProgress } from '../../domain/arc';
+import { willBlock } from '../../domain/lockin';
 import { focusStreak } from '../../domain/streaks';
 import { checkIn, histories, listHabits, undoCheckIn } from '../../repos/habits';
 import { focusDays, focusSecondsByDay, focusSecondsForTask, getOpenSession } from '../../repos/sessions';
@@ -40,6 +42,7 @@ import {
   T,
   Tiles,
 } from '../../ui/components';
+import { useBlockingReadiness } from '../../ui/BlockingCard';
 import { useHaptics } from '../../ui/haptics';
 import { RollingNumber } from '../../ui/RollingNumber';
 import { Screen } from '../../ui/Screen';
@@ -122,7 +125,9 @@ export default function TodayScreen() {
   return (
     <Screen title="Today" subtitle={`${greeting(new Date().getHours())} · ${formatDayLong(today)}`}>
       <View style={{ gap: TILE_GAP }}>
-        {open ? <ActiveSessionBanner /> : null}
+        {open ? <ActiveSessionBanner /> : <LockInButton taskId={next?.id ?? null} minutes={prefs.focusMinutes} />}
+
+        <ArcCard />
 
         <HeroCard
           done={doneTasks.length}
@@ -468,6 +473,84 @@ function NextUpTile({ task, focusedSeconds, remaining }: { task: Task; focusedSe
   );
 }
 
+function ArcCard() {
+  const { prefs, today } = useApp();
+  if (!prefs.arcStart) {
+    return (
+      <Card
+        onPress={() => router.push({ pathname: '/onboarding', params: { redo: '1' } })}
+        accessibilityLabel="Set up your arc"
+        style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}
+      >
+        <View style={{ flex: 1, gap: 2 }}>
+          <T v="headline">Set up your arc</T>
+          <T v="footnote" color={colors.secondary}>
+            Tell Dialed what you want to quit and build. It sets up the rest.
+          </T>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={colors.tertiary} />
+      </Card>
+    );
+  }
+  const p = arcProgress(prefs.arcStart, prefs.arcDays, today);
+  return (
+    <Card
+      onPress={() => router.navigate('/habits')}
+      accessibilityLabel={`${p.done ? 'Arc complete' : `Day ${p.day} of ${p.length}`}. Opens habits.`}
+      style={{ gap: space.s }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+        <T v="footnote" color={colors.secondary} style={{ flex: 1 }}>
+          {prefs.arcDays >= 90 ? 'Winter arc' : `${prefs.arcDays}-day arc`}
+        </T>
+        <T v="footnote" color={colors.secondary}>
+          {p.done ? 'Complete' : `${p.daysLeft} ${p.daysLeft === 1 ? 'day' : 'days'} left`}
+        </T>
+      </View>
+      <T v="title2" style={{ fontVariant: ['tabular-nums'] }}>
+        {p.done ? 'You finished your arc' : `Day ${p.day} of ${p.length}`}
+      </T>
+      <ProgressBar progress={p.day / p.length} height={6} />
+      {prefs.why ? (
+        <T v="footnote" color={colors.secondary} numberOfLines={2}>
+          “{prefs.why}”
+        </T>
+      ) : null}
+    </Card>
+  );
+}
+
+/** The app's main action: start a lock-in, blocking included when it's set up. */
+function LockInButton({ taskId, minutes }: { taskId: string | null; minutes: number }) {
+  const r = useBlockingReadiness();
+  const sub = willBlock(r)
+    ? `${minutes} min · blocks ${r.kind === 'ready' ? r.count : 0} ${r.kind === 'ready' && r.count === 1 ? 'app' : 'apps'}`
+    : r.kind === 'unavailable'
+      ? `${minutes} min focus`
+      : `${minutes} min · set up app blocking first`;
+  return (
+    <Pressable
+      onPress={() => router.push(taskId ? { pathname: '/focus', params: { taskId } } : '/focus')}
+      accessibilityRole="button"
+      accessibilityLabel={`Lock in. ${sub}`}
+      style={({ pressed }) => [styles.lockIn, pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}
+    >
+      <View style={styles.lockInIcon}>
+        <Ionicons name="lock-closed" size={22} color={colors.text} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <T v="title2" color={colors.onPrimary} style={{ fontWeight: '700' }}>
+          Lock in
+        </T>
+        <T v="footnote" color="#46464B">
+          {sub}
+        </T>
+      </View>
+      <Ionicons name="arrow-forward" size={22} color={colors.onPrimary} />
+    </Pressable>
+  );
+}
+
 function ActiveSessionBanner() {
   const session = useQuery((d) => getOpenSession(d));
   const now = useNow(1000, session?.status === 'running');
@@ -502,6 +585,24 @@ function ActiveSessionBanner() {
 }
 
 const styles = StyleSheet.create({
+  lockIn: {
+    marginHorizontal: SIDE - 4,
+    paddingVertical: space.l,
+    paddingHorizontal: space.l,
+    borderRadius: radius.l,
+    backgroundColor: colors.text,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.m,
+  },
+  lockInIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: colors.onPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   dayDot: {
     width: 34,
     height: 34,

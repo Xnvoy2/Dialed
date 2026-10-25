@@ -4,6 +4,7 @@ module.exports = (config) => ({
   name: 'LockinActivityMonitor',
   bundleIdentifier: '.monitor',
   deploymentTarget: '17.6',
+  frameworks: ['DeviceActivity', 'ManagedSettings', 'FamilyControls'],
   entitlements: {
     'com.apple.developer.family-controls': true,
     'com.apple.security.application-groups': config.ios.entitlements['com.apple.security.application-groups'],

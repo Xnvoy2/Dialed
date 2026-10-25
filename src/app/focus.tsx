@@ -12,9 +12,9 @@ import {
   projectedEndAt,
   remainingMs,
 } from '../domain/focus';
-import { blocking } from '../native/blocking';
-import { describeSelection, selectionCount } from '../native/blocking/types';
+import { describeBlockingError, shieldSummary, startLabel, willBlock } from '../domain/lockin';
 import { requestNotificationPermission } from '../native/notifications';
+import { BlockingCard, useBlockingReadiness } from '../ui/BlockingCard';
 import { FocusSession, SessionConflictError, getOpenSession, getSession, setSessionNote } from '../repos/sessions';
 import { getTask, setTaskCompleted, tasksForDay } from '../repos/tasks';
 import { useApp, useNow, useQuery } from '../state/AppProvider';
@@ -34,7 +34,7 @@ import {
   ToggleRow,
 } from '../ui/components';
 import Animated, { ZoomIn } from 'react-native-reanimated';
-import { SIDE, colors, radius, space } from '../ui/theme';
+import { SIDE, TILE_GAP, colors, radius, space } from '../ui/theme';
 
 export default function FocusScreen() {
   const { taskId } = useLocalSearchParams<{ taskId?: string }>();
@@ -61,20 +61,24 @@ export default function FocusScreen() {
 
 function Setup({ initialTaskId }: { initialTaskId: string | null }) {
   const insets = useSafeAreaInsets();
-  const { prefs, setPrefs, version } = useApp();
+  const { prefs, setPrefs } = useApp();
   const actions = useFocusActions();
   const tasks = useQuery((d, t) => tasksForDay(d, t).filter((x) => !x.completedAt));
   const [taskId, setTaskId] = useState<string | null>(initialTaskId);
   const [minutes, setMinutes] = useState(prefs.focusMinutes);
+  const [reason, setReason] = useState(prefs.why ?? '');
   const [starting, setStarting] = useState(false);
-  // Re-read on every data change (e.g. returning from blocking settings).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const avail = React.useMemo(() => blocking.availability(), [version]);
+  const readiness = useBlockingReadiness();
+  const taskTitle = tasks.find((t) => t.id === taskId)?.title ?? null;
+  const blocks = willBlock(readiness);
 
   const start = async () => {
     setStarting(true);
     try {
-      await actions.start({ kind: 'focus', minutes, taskId });
+      const s = await actions.start({ kind: 'focus', minutes, taskId, reason });
+      if (s.blockingRequested && !s.blockingApplied) {
+        Alert.alert('Blocking didn’t start', describeBlockingError(s.blockingError) + ' Your session is still running.');
+      }
     } catch (e) {
       if (e instanceof SessionConflictError) Alert.alert('A session is already running', 'End it before starting another.');
       else Alert.alert('Couldn’t start', String(e));
@@ -86,10 +90,13 @@ function Setup({ initialTaskId }: { initialTaskId: string | null }) {
   return (
     <View style={[styles.fill, { paddingTop: insets.top }]}>
       <TopBar onClose={() => router.back()} />
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} keyboardShouldPersistTaps="handled">
         <View style={{ paddingHorizontal: SIDE, marginBottom: space.xl }}>
           <T v="largeTitle" accessibilityRole="header">
-            Focus
+            Lock in
+          </T>
+          <T v="subhead" color={colors.secondary}>
+            One task, no distractions.
           </T>
         </View>
 
@@ -98,7 +105,7 @@ function Setup({ initialTaskId }: { initialTaskId: string | null }) {
             style={styles.durationRow}
             accessible
             accessibilityRole="adjustable"
-            accessibilityLabel="Focus length"
+            accessibilityLabel="Lock-in length"
             accessibilityValue={{ text: `${minutes} minutes` }}
             accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
             onAccessibilityAction={(e) =>
@@ -122,9 +129,37 @@ function Setup({ initialTaskId }: { initialTaskId: string | null }) {
         </View>
 
         <T v="headline" style={styles.label}>
+          Block distractions
+        </T>
+        <View style={{ gap: TILE_GAP }}>
+          <BlockingCard />
+        </View>
+
+        <T v="headline" style={styles.label}>
+          Why are you locking in?
+        </T>
+        <View style={{ paddingHorizontal: SIDE - 4, gap: space.s }}>
+          <TextInput
+            value={reason}
+            onChangeText={setReason}
+            placeholder={taskTitle ? taskTitle : 'e.g. finish my portfolio'}
+            placeholderTextColor={colors.tertiary}
+            maxLength={140}
+            returnKeyType="done"
+            style={styles.reason}
+            accessibilityLabel="Why are you locking in?"
+            accessibilityHint="Shown when you try to open a blocked app"
+            selectionColor={colors.text}
+          />
+          <T v="footnote" color={colors.tertiary} style={{ paddingHorizontal: 4 }}>
+            Shown to you if you open a blocked app. Stays on this phone.
+          </T>
+        </View>
+
+        <T v="headline" style={styles.label}>
           Working on
         </T>
-        <Group>
+        <Tiles>
           <Row
             title="No particular task"
             leading={<CheckCircle checked={taskId === null} onPress={() => setTaskId(null)} label="No particular task" />}
@@ -139,39 +174,15 @@ function Setup({ initialTaskId }: { initialTaskId: string | null }) {
               onPress={() => setTaskId(t.id)}
             />
           ))}
-        </Group>
+        </Tiles>
 
         <T v="headline" style={styles.label}>
-          While focusing
+          When time’s up
         </T>
-        <Group>
-          {avail.state === 'approved' && selectionCount(avail.selection) > 0 ? (
-            <ToggleRow
-              title="Block selected apps"
-              subtitle={describeSelection(avail.selection)}
-              value={prefs.blockingEnabled}
-              onChange={(v) => setPrefs({ blockingEnabled: v })}
-            />
-          ) : (
-            <Row
-              icon="lock-closed-outline"
-              title="App blocking"
-              subtitle={
-                avail.state === 'unsupported'
-                  ? `Unavailable. ${avail.reason}`
-                  : avail.state === 'denied'
-                    ? 'Screen Time access is off'
-                    : avail.state === 'not_determined'
-                      ? 'Not set up'
-                      : 'No apps chosen yet'
-              }
-              chevron={avail.state !== 'unsupported'}
-              onPress={avail.state === 'unsupported' ? undefined : () => router.push('/settings/blocking')}
-            />
-          )}
+        <Tiles>
           {!prefs.notificationsAsked ? (
             <ToggleRow
-              title="Notify me when time’s up"
+              title="Notify me"
               subtitle="Useful if you leave the app. We’ll ask iOS for permission."
               value={false}
               onChange={async (v) => {
@@ -182,7 +193,7 @@ function Setup({ initialTaskId }: { initialTaskId: string | null }) {
             />
           ) : (
             <ToggleRow
-              title="Notify me when time’s up"
+              title="Notify me"
               value={prefs.notifyOnSessionEnd}
               onChange={async (v) => {
                 if (v && (await requestNotificationPermission()) !== 'granted') {
@@ -193,12 +204,18 @@ function Setup({ initialTaskId }: { initialTaskId: string | null }) {
               }}
             />
           )}
-        </Group>
+        </Tiles>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + space.m }]}>
         <FadeEdge />
-        <Button title={`Start ${minutes} min`} icon="play" onPress={start} loading={starting} />
+        <Button
+          title={startLabel(minutes, readiness)}
+          icon={blocks ? 'lock-closed' : 'play'}
+          kind={blocks || readiness.kind === 'unavailable' ? 'primary' : 'secondary'}
+          onPress={start}
+          loading={starting}
+        />
       </View>
     </View>
   );
@@ -307,7 +324,7 @@ function BlockingStatus({ session }: { session: FocusSession }) {
     text = 'Selected apps are shielded';
     icon = 'lock-closed-outline';
   } else {
-    text = 'App blocking couldn’t be applied';
+    text = describeBlockingError(session.blockingError);
     icon = 'alert-circle-outline';
   }
   return (
@@ -375,7 +392,8 @@ function Completion({ session, onReset }: { session: FocusSession; onReset: () =
     session.pauses.length
       ? `${session.pauses.length} pause${session.pauses.length === 1 ? '' : 's'}, ${pausedMin} min not counted`
       : 'No pauses',
-    session.blockingRequested ? (session.blockingApplied ? 'Chosen apps were shielded' : 'App blocking wasn’t applied') : null,
+    session.blockingRequested ? (session.blockingApplied ? 'Chosen apps were blocked' : 'App blocking wasn’t applied') : null,
+    shieldSummary(session.backToFocusCount, session.deliberateExitCount),
   ].filter(Boolean) as string[];
 
   return (
@@ -512,6 +530,15 @@ const styles = StyleSheet.create({
   control: { alignItems: 'center', gap: space.s },
   controlSlot: { height: 84, justifyContent: 'center' },
   blockStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 24 },
+  reason: {
+    fontSize: 17,
+    color: colors.text,
+    backgroundColor: colors.surface,
+    borderRadius: radius.l,
+    paddingHorizontal: space.l,
+    paddingVertical: space.m,
+    minHeight: 52,
+  },
   reveal: {
     alignSelf: 'center',
     width: '78%',

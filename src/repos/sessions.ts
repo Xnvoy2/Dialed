@@ -20,6 +20,14 @@ export interface FocusSession extends SessionTiming {
   note: string | null;
   blockingRequested: boolean;
   blockingApplied: boolean;
+  /** Why the user is locking in. Shown on the shield; private, never uploaded. */
+  reason: string | null;
+  /** Why blocking could not be applied, when it was requested. */
+  blockingError: string | null;
+  /** Times the user tapped "Back to focus" on the shield. */
+  backToFocusCount: number;
+  /** Times the user chose "Open for 5 minutes" on the shield. */
+  deliberateExitCount: number;
 }
 
 interface Row {
@@ -37,6 +45,10 @@ interface Row {
   note: string | null;
   blocking_requested: number;
   blocking_applied: number;
+  reason: string | null;
+  blocking_error: string | null;
+  back_to_focus_count: number;
+  deliberate_exit_count: number;
   current_title: string | null;
 }
 
@@ -82,6 +94,10 @@ function hydrate(db: Db, rows: Row[]): FocusSession[] {
     note: r.note,
     blockingRequested: r.blocking_requested === 1,
     blockingApplied: r.blocking_applied === 1,
+    reason: r.reason,
+    blockingError: r.blocking_error,
+    backToFocusCount: r.back_to_focus_count ?? 0,
+    deliberateExitCount: r.deliberate_exit_count ?? 0,
     pauses: pauses.get(r.id) ?? [],
   }));
 }
@@ -98,7 +114,13 @@ export function getOpenSession(db: Db): FocusSession | null {
 
 export function startSession(
   db: Db,
-  input: { kind: SessionKind; plannedSeconds: number; taskId?: string | null; blockingRequested?: boolean },
+  input: {
+    kind: SessionKind;
+    plannedSeconds: number;
+    taskId?: string | null;
+    blockingRequested?: boolean;
+    reason?: string | null;
+  },
   now = Date.now(),
 ): FocusSession {
   const planned = Math.round(input.plannedSeconds);
@@ -113,8 +135,8 @@ export function startSession(
       db.run(
         `INSERT INTO focus_sessions
           (id, kind, task_id, task_title_snapshot, planned_seconds, status, started_at, local_day,
-           time_zone, utc_offset_minutes, blocking_requested, open_slot)
-         VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?, ?, ?, 1)`,
+           time_zone, utc_offset_minutes, blocking_requested, reason, open_slot)
+         VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?, ?, ?, ?, 1)`,
         [
           id,
           input.kind,
@@ -126,6 +148,7 @@ export function startSession(
           currentTimeZone(),
           utcOffsetMinutes(new Date(now)),
           input.blockingRequested ? 1 : 0,
+          cleanReason(input.reason),
         ],
       );
     } catch (e) {
@@ -197,8 +220,28 @@ export function setSessionNote(db: Db, id: string, note: string): void {
   db.run('UPDATE focus_sessions SET note = ? WHERE id = ?', [note.trim() || null, id]);
 }
 
-export function setBlockingApplied(db: Db, id: string, applied: boolean): void {
-  db.run('UPDATE focus_sessions SET blocking_applied = ? WHERE id = ?', [applied ? 1 : 0, id]);
+export function cleanReason(reason: string | null | undefined): string | null {
+  const r = (reason ?? '').replace(/\s+/g, ' ').trim();
+  return r ? r.slice(0, 140) : null;
+}
+
+export function setBlockingApplied(db: Db, id: string, applied: boolean, error: string | null = null): void {
+  db.run('UPDATE focus_sessions SET blocking_applied = ?, blocking_error = ? WHERE id = ?', [
+    applied ? 1 : 0,
+    applied ? null : error,
+    id,
+  ]);
+}
+
+/** Shield activity reported by the extensions. Counts only; they only ever grow. */
+export function recordShieldActivity(db: Db, id: string, counts: { backToFocus: number; deliberateExits: number }): void {
+  db.run(
+    `UPDATE focus_sessions SET
+       back_to_focus_count = MAX(back_to_focus_count, ?),
+       deliberate_exit_count = MAX(deliberate_exit_count, ?)
+     WHERE id = ?`,
+    [Math.max(0, Math.floor(counts.backToFocus)), Math.max(0, Math.floor(counts.deliberateExits)), id],
+  );
 }
 
 /** Finished sessions whose local day falls in [from, to]. */

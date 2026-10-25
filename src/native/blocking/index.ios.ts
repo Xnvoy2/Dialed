@@ -30,11 +30,11 @@ export const blocking: BlockingProvider = {
     if (!Native) return null;
     return Native.presentActivityPicker();
   },
-  async startShield(endsAtMs) {
+  async startShield(endsAtMs, opts) {
     const a = availability();
     if (a.state !== 'approved') return { applied: false, autoExpiry: false, reason: a.state };
     if (selectionCount(a.selection) === 0) return { applied: false, autoExpiry: false, reason: 'empty_selection' };
-    const r = await Native!.startShield(endsAtMs);
+    const r = await Native!.startShield(endsAtMs, opts.reason, opts.resetCounts);
     return {
       applied: r.shielded,
       autoExpiry: r.monitoring,
@@ -44,6 +44,26 @@ export const blocking: BlockingProvider = {
   async stopShield() {
     if (!Native) return;
     await Native.stopShield();
+  },
+  async setAdultFilter(on) {
+    if (!Native) return { on: false, reason: 'unsupported' };
+    const r = await Native.setAdultFilter(on);
+    return { on: r.on, reason: r.error };
+  },
+  adultFilterOn() {
+    try {
+      return Native?.adultFilterOn() ?? false;
+    } catch {
+      return false;
+    }
+  },
+  activity() {
+    if (!Native) return null;
+    try {
+      return Native.shieldActivity();
+    } catch {
+      return null;
+    }
   },
   diagnostics() {
     if (!Native) return null;

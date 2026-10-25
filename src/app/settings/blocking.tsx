@@ -49,7 +49,7 @@ export default function BlockingSettings() {
       return;
     }
     const endsAt = Date.now() + 2 * 60_000;
-    const r = await blocking.startShield(endsAt);
+    const r = await blocking.startShield(endsAt, { reason: 'Testing the shield', resetCounts: false });
     setTestResult(
       r.applied
         ? `Shield applied (verified). Auto-removal ${r.autoExpiry ? `scheduled for ${formatClock(endsAt)}` : `NOT scheduled: ${r.reason ?? 'unknown'}`}. Force-quit the app and check the apps unlock on time.`

@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { projectedEndAt } from '../domain/focus';
+import { blockingReadiness, willBlock } from '../domain/lockin';
 import { blocking } from '../native/blocking';
 import { cancelSessionEnd, scheduleSessionEnd } from '../native/notifications';
 import {
@@ -9,11 +10,11 @@ import {
   pauseSession,
   reconcileOpenSession,
   resumeSession,
-  setBlockingApplied,
   startSession,
 } from '../repos/sessions';
 import { useHaptics } from '../ui/haptics';
 import { useApp } from './AppProvider';
+import { applyShield, syncShieldActivity } from './shield';
 
 /**
  * Coordinates a session's side effects: the database row is the source of
@@ -23,50 +24,41 @@ export function useFocusActions() {
   const { db, prefs, refresh } = useApp();
   const haptics = useHaptics();
 
-  const applySideEffects = useCallback(
-    async (s: FocusSession) => {
-      const endAt = projectedEndAt(s);
-      if (endAt && prefs.notifyOnSessionEnd) await scheduleSessionEnd(endAt, s.kind);
-      if (s.kind === 'focus' && s.blockingRequested && endAt) {
+  const liftEffects = useCallback(
+    async (s: FocusSession | null) => {
+      await cancelSessionEnd();
+      if (s?.blockingRequested) {
+        syncShieldActivity(db, s);
         try {
-          const r = await blocking.startShield(endAt);
-          setBlockingApplied(db, s.id, r.applied);
+          await blocking.stopShield();
         } catch {
-          setBlockingApplied(db, s.id, false);
+          // Recovery retries on foreground.
         }
       }
     },
-    [db, prefs.notifyOnSessionEnd],
+    [db],
   );
 
-  const liftEffects = useCallback(async (s: FocusSession | null) => {
-    await cancelSessionEnd();
-    if (s?.blockingRequested) {
-      try {
-        await blocking.stopShield();
-      } catch {
-        // Diagnostics will show if a shield remains; recovery retries on foreground.
-      }
-    }
-  }, []);
-
   const start = useCallback(
-    async (input: { kind: 'focus' | 'break'; minutes: number; taskId?: string | null }) => {
+    async (input: { kind: 'focus' | 'break'; minutes: number; taskId?: string | null; reason?: string | null }) => {
       const wantsBlocking =
-        input.kind === 'focus' && prefs.blockingEnabled && blocking.availability().state === 'approved';
+        input.kind === 'focus' && willBlock(blockingReadiness(blocking.availability(), prefs.blockingEnabled));
       const s = startSession(db, {
         kind: input.kind,
         plannedSeconds: input.minutes * 60,
         taskId: input.taskId ?? null,
         blockingRequested: wantsBlocking,
+        reason: input.kind === 'focus' ? input.reason ?? null : null,
       });
       haptics.impact();
       refresh();
-      await applySideEffects(s);
+      const endAt = projectedEndAt(s);
+      if (endAt && prefs.notifyOnSessionEnd) await scheduleSessionEnd(endAt, s.kind);
+      await applyShield(db, s, true);
       refresh();
-      return s;
+      return getSession(db, s.id)!;
     },
-    [db, prefs.blockingEnabled, applySideEffects, haptics, refresh],
+    [db, prefs.blockingEnabled, prefs.notifyOnSessionEnd, haptics, refresh],
   );
 
   const pause = useCallback(
@@ -75,9 +67,8 @@ export function useFocusActions() {
       haptics.select();
       const s = getSession(db, id);
       refresh();
-      // Shields are lifted during a pause; the user chose to step away.
+      // Apps are unlocked during a pause; the user chose to step away.
       await liftEffects(s);
-      if (s?.blockingRequested) setBlockingApplied(db, id, false);
       refresh();
     },
     [db, haptics, liftEffects, refresh],
@@ -89,19 +80,24 @@ export function useFocusActions() {
       haptics.select();
       const s = getSession(db, id);
       refresh();
-      if (s) await applySideEffects(s);
+      if (s) {
+        const endAt = projectedEndAt(s);
+        if (endAt && prefs.notifyOnSessionEnd) await scheduleSessionEnd(endAt, s.kind);
+        await applyShield(db, s, false);
+      }
       refresh();
     },
-    [db, haptics, applySideEffects, refresh],
+    [db, haptics, prefs.notifyOnSessionEnd, refresh],
   );
 
   const end = useCallback(
     async (id: string) => {
+      syncShieldActivity(db, getSession(db, id));
       const s = endSession(db, id);
       haptics.impact();
-      refresh();
       await liftEffects(s);
-      return s;
+      refresh();
+      return getSession(db, id);
     },
     [db, haptics, liftEffects, refresh],
   );
@@ -111,10 +107,10 @@ export function useFocusActions() {
     const done = reconcileOpenSession(db);
     if (done) {
       haptics.success();
-      refresh();
       await liftEffects(done);
+      refresh();
     }
-    return done;
+    return done ? getSession(db, done.id) : null;
   }, [db, haptics, liftEffects, refresh]);
 
   return { start, pause, resume, end, reconcile };

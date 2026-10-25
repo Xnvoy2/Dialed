@@ -57,6 +57,27 @@ Or with EAS: `npx eas-cli@latest build --profile development --platform ios`
 If `pod install` fails with `Unicode Normalization not appropriate for
 ASCII-8BIT`, your shell locale isn't UTF-8: `export LANG=en_US.UTF-8`.
 
+## First open
+
+1. **Sign in with Apple** (required; see below).
+2. **Arc questions:** what to quit (porn, nicotine, doomscrolling, gaming,
+   drinking, junk food), what to build (gym, steps, study, a project, sleep,
+   reading, mental health, money, self-care), details (gym days, bedtime,
+   focus length), what pulls you off track, arc length (30/60/90 days) and
+   your "why".
+3. **Your plan:** habits, lock-in blocking and, if quitting porn, an
+   always-on Screen Time adult-website filter. Untick anything.
+4. **Screen Time setup:** one Face ID prompt, then Apple's app picker.
+
+The mapping from answers to setup is `src/domain/arc.ts` (`buildPlan`),
+tested in `tests/arc.test.ts`. Redo it any time from Settings › Your arc.
+
+**Sign-in caveat:** App Store guideline 5.1.1(v) says apps shouldn't require
+an account for features that aren't account-based, and everything in Dialed
+works offline. If App Review objects, set `extra.requireSignIn` to `false` in
+`app.config.ts` to make it optional. Development builds show a skip link
+because the simulator has no Apple Account.
+
 ## Key decisions
 
 - **Timer truth is timestamps.** Sessions store start, pauses and end in SQLite;

@@ -19,6 +19,13 @@ export interface ShieldResult {
   reason?: string;
 }
 
+export interface ShieldActivity {
+  backToFocus: number;
+  deliberateExits: number;
+  /** Set while one app is exempt after "Open for 5 minutes". */
+  graceUntilMs?: number;
+}
+
 export interface ShieldDiagnostics {
   isSimulator: boolean;
   shielded: boolean;
@@ -36,7 +43,12 @@ export interface BlockingProvider {
   /** `declined` is true when the user dismissed or refused the system prompt. */
   requestAuthorization(): Promise<{ availability: BlockingAvailability; declined: boolean; error?: string }>;
   chooseApps(): Promise<SelectionSummary | null>;
-  startShield(endsAtMs: number): Promise<ShieldResult>;
+  /** `resetCounts` is true for a new lock-in, false when re-applying (resume, recovery). */
+  startShield(endsAtMs: number, opts: { reason: string | null; resetCounts: boolean }): Promise<ShieldResult>;
+  activity(): ShieldActivity | null;
+  /** Always-on adult-website filter. `on` is read back from Screen Time. */
+  setAdultFilter(on: boolean): Promise<{ on: boolean; reason?: string }>;
+  adultFilterOn(): boolean;
   stopShield(): Promise<void>;
   diagnostics(): ShieldDiagnostics | null;
 }

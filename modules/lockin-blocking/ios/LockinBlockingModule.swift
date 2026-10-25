@@ -16,8 +16,18 @@ import SwiftUI
 /// opaque set of tokens stored only in this device's App Group container.
 public class LockinBlockingModule: Module {
   static let storeName = ManagedSettingsStore.Name("lockin.focus")
+  /// Settings that stay on outside lock-ins (the adult-website filter).
+  /// Separate store so ending a lock-in never clears them.
+  static let alwaysStoreName = ManagedSettingsStore.Name("lockin.always")
   static let activityName = DeviceActivityName("lockin.session")
+  static let graceActivity = DeviceActivityName("lockin.grace")
   static let selectionKey = "lockin.selection.v1"
+  // Shared with the extensions through the App Group. Keep names in sync.
+  static let reasonKey = "lockin.shield.reason"
+  static let endsAtKey = "lockin.shield.endsAt"
+  static let backToFocusKey = "lockin.count.backToFocus"
+  static let exitsKey = "lockin.count.exits"
+  static let graceUntilKey = "lockin.grace.until"
 
   private var appGroup: String? {
     Bundle.main.object(forInfoDictionaryKey: "LockinAppGroup") as? String
@@ -88,7 +98,7 @@ public class LockinBlockingModule: Module {
 
     /// Applies the shield and schedules its automatic removal at endsAtMs.
     /// Returns what was verified, never what was merely attempted.
-    AsyncFunction("startShield") { (endsAtMs: Double) -> [String: Any] in
+    AsyncFunction("startShield") { (endsAtMs: Double, reason: String?, resetCounts: Bool) -> [String: Any] in
       guard Self.describe(AuthorizationCenter.shared.authorizationStatus) == "approved" else {
         return ["shielded": false, "monitoring": false, "error": "not_authorized"]
       }
@@ -109,14 +119,54 @@ public class LockinBlockingModule: Module {
         result["monitoring"] = false
         result["monitoringError"] = String(describing: error)
       }
-      self.defaults?.set(endsAtMs, forKey: "lockin.shield.endsAt")
+      let d = self.defaults
+      d?.set(endsAtMs, forKey: Self.endsAtKey)
+      if let reason, !reason.isEmpty { d?.set(reason, forKey: Self.reasonKey) } else { d?.removeObject(forKey: Self.reasonKey) }
+      if resetCounts {
+        d?.set(0, forKey: Self.backToFocusKey)
+        d?.set(0, forKey: Self.exitsKey)
+      }
+      // A full re-apply ends any 5-minute exemption.
+      d?.removeObject(forKey: Self.graceUntilKey)
+      DeviceActivityCenter().stopMonitoring([Self.graceActivity])
       return result
+    }
+
+    /// Always-on adult-website filter (Safari and other WebKit browsers).
+    /// Returns what was read back, not what was attempted.
+    AsyncFunction("setAdultFilter") { (on: Bool) -> [String: Any] in
+      let always = ManagedSettingsStore(named: Self.alwaysStoreName)
+      if on {
+        guard Self.describe(AuthorizationCenter.shared.authorizationStatus) == "approved" else {
+          return ["on": false, "error": "not_authorized"]
+        }
+        always.webContent.blockedByFilter = .auto()
+      } else {
+        always.webContent.blockedByFilter = nil
+      }
+      return ["on": always.webContent.blockedByFilter != nil]
+    }
+
+    Function("adultFilterOn") { () -> Bool in
+      ManagedSettingsStore(named: Self.alwaysStoreName).webContent.blockedByFilter != nil
+    }
+
+    /// Counts written by the shield-action extension for the current lock-in.
+    Function("shieldActivity") { () -> [String: Any] in
+      var out: [String: Any] = [
+        "backToFocus": self.defaults?.integer(forKey: Self.backToFocusKey) ?? 0,
+        "deliberateExits": self.defaults?.integer(forKey: Self.exitsKey) ?? 0,
+      ]
+      if let until = self.defaults?.object(forKey: Self.graceUntilKey) as? Double { out["graceUntilMs"] = until }
+      return out
     }
 
     AsyncFunction("stopShield") { () -> [String: Any] in
       self.store.clearAllSettings()
-      DeviceActivityCenter().stopMonitoring([Self.activityName])
-      self.defaults?.removeObject(forKey: "lockin.shield.endsAt")
+      DeviceActivityCenter().stopMonitoring([Self.activityName, Self.graceActivity])
+      self.defaults?.removeObject(forKey: Self.endsAtKey)
+      self.defaults?.removeObject(forKey: Self.reasonKey)
+      self.defaults?.removeObject(forKey: Self.graceUntilKey)
       return ["shielded": self.isShielded()]
     }
 
@@ -125,7 +175,7 @@ public class LockinBlockingModule: Module {
         "shielded": self.isShielded(),
         "monitoring": DeviceActivityCenter().activities.contains(Self.activityName),
       ]
-      if let endsAt = self.defaults?.object(forKey: "lockin.shield.endsAt") as? Double {
+      if let endsAt = self.defaults?.object(forKey: Self.endsAtKey) as? Double {
         state["endsAtMs"] = endsAt
       }
       if let cleared = self.defaults?.object(forKey: "lockin.extension.lastIntervalEnd") as? Double {

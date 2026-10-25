@@ -20,13 +20,16 @@ declare class LockinBlockingModule extends NativeModule<{}> {
   selectionSummary(): SelectionSummary;
   clearSelection(): void;
   presentActivityPicker(): Promise<SelectionSummary | null>;
-  startShield(endsAtMs: number): Promise<{
+  startShield(endsAtMs: number, reason: string | null, resetCounts: boolean): Promise<{
     shielded: boolean;
     monitoring: boolean;
     error?: 'not_authorized' | 'empty_selection';
     monitoringError?: string;
   }>;
   stopShield(): Promise<{ shielded: boolean }>;
+  setAdultFilter(on: boolean): Promise<{ on: boolean; error?: string }>;
+  adultFilterOn(): boolean;
+  shieldActivity(): { backToFocus: number; deliberateExits: number; graceUntilMs?: number };
   shieldState(): NativeShieldState;
 }
 

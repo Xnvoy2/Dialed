@@ -30,6 +30,8 @@ export default function Settings() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const avail = React.useMemo(() => blocking.availability(), [version]);
 
+  const [filterOn, setFilterOn] = useState(() => blocking.adultFilterOn());
+
   const blockingSummary =
     avail.state === 'unsupported'
       ? 'Unavailable'
@@ -74,6 +76,7 @@ export default function Settings() {
             deleteAll(db);
             await cancelSessionEnd();
             await blocking.stopShield().catch(() => {});
+            await blocking.setAdultFilter(false).catch(() => {});
             refresh();
             router.dismissAll();
             router.replace('/onboarding');
@@ -90,12 +93,39 @@ export default function Settings() {
           <Ionicons name="person" size={26} color={colors.text} />
         </View>
         <View style={{ flex: 1, gap: 2 }}>
-          <T v="headline">{APP_NAME}</T>
+          <T v="headline">{prefs.displayName || APP_NAME}</T>
           <T v="footnote" color={colors.secondary}>
-            No account. Everything is stored on this iPhone.
+            {prefs.appleUserId ? 'Signed in with Apple. Your data stays on this iPhone.' : 'Not signed in. Your data stays on this iPhone.'}
           </T>
         </View>
       </Card>
+
+      <SectionHeader title="Your arc" />
+      <Tiles>
+        <Row
+          icon="flag-outline"
+          title="Redo my arc setup"
+          subtitle="Change what you’re quitting and building"
+          chevron
+          onPress={() => router.push({ pathname: '/onboarding', params: { redo: '1' } })}
+        />
+        <ToggleRow
+          title="Block adult websites, always"
+          subtitle={
+            avail.state === 'approved'
+              ? 'Apple’s Screen Time filter in Safari and other browsers'
+              : 'Needs Screen Time access (set up from Lock in)'
+          }
+          value={prefs.adultFilter && filterOn}
+          disabled={avail.state !== 'approved'}
+          onChange={async (v) => {
+            const r = await blocking.setAdultFilter(v);
+            setFilterOn(r.on);
+            setPrefs({ adultFilter: v && r.on });
+            if (v && !r.on) Alert.alert('Couldn’t turn on the filter', 'Check Screen Time access for Dialed in iOS Settings.');
+          }}
+        />
+      </Tiles>
 
       <SectionHeader title="Focus" />
       <Tiles>

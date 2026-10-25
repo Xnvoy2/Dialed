@@ -98,8 +98,8 @@ function FocusButton({ onPress }: { onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={open ? `Open current session, ${Math.round(progress * 100)} percent done` : 'Focus'}
-      accessibilityHint="Opens the focus timer"
+      accessibilityLabel={open ? `Open current session, ${Math.round(progress * 100)} percent done` : 'Lock in'}
+      accessibilityHint="Start a lock-in or open the current one"
       onPress={onPress}
       style={({ pressed }) => [styles.focus, pressed && { transform: [{ scale: 0.94 }] }]}
     >
@@ -110,7 +110,7 @@ function FocusButton({ onPress }: { onPress: () => void }) {
           <Ionicons name={open.status === 'paused' ? 'pause' : 'hourglass'} size={22} color={colors.text} />
         </Ring>
       ) : (
-        <Ionicons name="timer-outline" size={25} color={colors.text} />
+        <Ionicons name="lock-closed-outline" size={24} color={colors.text} />
       )}
     </Pressable>
   );

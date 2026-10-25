@@ -26,6 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     appleTeamId,
     supportsTablet: false,
     buildNumber: '1',
+    usesAppleSignIn: true,
     config: { usesNonExemptEncryption: false },
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
@@ -57,10 +58,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ['expo-splash-screen', { backgroundColor: '#161617', image: './assets/splash-icon.png', imageWidth: 120 }],
     ['expo-notifications', { enableBackgroundRemoteNotifications: false }],
     ['expo-build-properties', { ios: { deploymentTarget: '17.6' } }],
+    'expo-apple-authentication',
     '@bacons/apple-targets',
   ],
   experiments: { typedRoutes: false },
   extra: {
+    /** Require Sign in with Apple before the arc questions. Flip to false if App Review objects (guideline 5.1.1(v)). */
+    requireSignIn: true,
     displayName,
     appGroup,
   },

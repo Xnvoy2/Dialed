@@ -9,5 +9,8 @@ export const blocking: BlockingProvider = {
   chooseApps: async () => null,
   startShield: async () => ({ applied: false, autoExpiry: false, reason }),
   stopShield: async () => {},
+  activity: () => null,
+  setAdultFilter: async () => ({ on: false, reason }),
+  adultFilterOn: () => false,
   diagnostics: () => null,
 };
