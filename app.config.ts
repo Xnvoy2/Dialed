@@ -6,7 +6,7 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
  *   APP_DISPLAY_NAME="Something" LOCKIN_BUNDLE_ID=com.you.app APPLE_TEAM_ID=XXXXXXXXXX npx expo prebuild --clean
  */
 const displayName = process.env.APP_DISPLAY_NAME ?? 'Dialed';
-const bundleId = process.env.LOCKIN_BUNDLE_ID ?? 'dev.lockin.app';
+const bundleId = process.env.LOCKIN_BUNDLE_ID ?? 'com.joshbarton.dialed';
 // Team from the sibling calorieearn project; override for another account.
 const appleTeamId = process.env.APPLE_TEAM_ID ?? 'PPNNNASZJX';
 const appGroup = `group.${bundleId}`;

@@ -66,8 +66,8 @@ session behind it.
 - **Entitlement**: `com.apple.developer.family-controls` works with development
   signing. TestFlight/App Store need approval via
   https://developer.apple.com/contact/request/family-controls-distribution —
-  one request each for `dev.lockin.app`, `dev.lockin.app.monitor`,
-  `dev.lockin.app.shield` (change if the bundle ID changes).
+  one request each for `com.joshbarton.dialed`, `com.joshbarton.dialed.monitor`,
+  `com.joshbarton.dialed.shield` (change if the bundle ID changes).
 - **What it can't do**: prove work, block other devices, or stop someone
   removing the authorisation. The user chooses what to block.
 

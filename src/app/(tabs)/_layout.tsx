@@ -3,7 +3,6 @@ import Tabs from 'expo-router/js-tabs';
 import React, { useEffect } from 'react';
 import { useApp } from '../../state/AppProvider';
 import { Dock } from '../../ui/Dock';
-import { DockProvider } from '../../ui/dockState';
 import { colors } from '../../ui/theme';
 
 export default function TabsLayout() {
@@ -14,7 +13,6 @@ export default function TabsLayout() {
   }, [prefs.onboarded, justCompletedId]);
   if (!prefs.onboarded) return <Redirect href="/onboarding" />;
   return (
-    <DockProvider>
     <Tabs
       tabBar={(props) => <Dock {...props} />}
       screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
@@ -24,6 +22,5 @@ export default function TabsLayout() {
       <Tabs.Screen name="progress" />
       <Tabs.Screen name="rewards" />
     </Tabs>
-    </DockProvider>
   );
 }

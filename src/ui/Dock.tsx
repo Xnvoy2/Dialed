@@ -4,22 +4,12 @@ import { router } from 'expo-router';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import React, { useEffect, useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  interpolate,
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useDerivedValue,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { scheduleOnRN } from 'react-native-worklets';
 import { activeMs } from '../domain/focus';
 import { getOpenSession } from '../repos/sessions';
 import { useApp, useNow, useQuery } from '../state/AppProvider';
 import { IconName, Ring } from './components';
-import { useDockCollapse } from './dockState';
 import { useHaptics } from './haptics';
 import { colors } from './theme';
 
@@ -35,13 +25,12 @@ const H = 64;
 
 /**
  * Floating glass pill with a separate round Focus button, after the reference.
- * Scrolling down collapses it to two small buttons; scrolling up restores it.
+ * Always visible; it does not hide on scroll.
  */
 export function Dock({ state, navigateToTab }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { reduceMotion } = useApp();
   const haptics = useHaptics();
-  const collapsed = useDockCollapse();
   const [width, setWidth] = useState(0);
   const count = state.routes.length;
   const itemW = width / count;
@@ -52,43 +41,13 @@ export function Dock({ state, navigateToTab }: BottomTabBarProps) {
     x.value = reduceMotion || !width ? target : withSpring(target, SPRING);
   }, [state.index, itemW, reduceMotion, width, x]);
 
-  // Expand whenever the tab changes.
-  useEffect(() => {
-    if (collapsed) collapsed.value = 0;
-  }, [state.index, collapsed]);
-
   const indicator = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
-  const zero = useSharedValue(0);
-  const target = collapsed ?? zero;
-  const progress = useDerivedValue(() =>
-    reduceMotion ? (target.value > 0.5 ? 1 : 0) : withTiming(target.value, { duration: 220 }),
-  );
-  const pillStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 1], [1, 0]),
-    transform: [{ scale: interpolate(progress.value, [0, 1], [1, 0.92]) }],
-  }));
-  const miniStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 1], [0, 1]),
-    transform: [{ scale: interpolate(progress.value, [0, 1], [0.8, 1]) }],
-  }));
-  const [pillInteractive, setPillInteractive] = useState(true);
-  // Mirror the shared value into React state so hidden controls can't be tapped.
-  useAnimatedReaction(
-    () => (collapsed?.value ?? 0) < 0.5,
-    (expanded, prev) => {
-      if (expanded !== prev) scheduleOnRN(setPillInteractive, expanded);
-    },
-  );
-
-  const current = state.routes[state.index];
-  const [, currentIcon] = ICONS[current?.name] ?? ['ellipse', 'ellipse'];
 
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(insets.bottom - 6, 12) }]}>
-      <View style={{ flex: 1, height: H }} pointerEvents="box-none">
-        <Animated.View
-          pointerEvents={pillInteractive ? 'auto' : 'none'}
-          style={[styles.pill, pillStyle]}
+      <View style={{ flex: 1, height: H }}>
+        <View
+          style={styles.pill}
           onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width - 8)}
         >
           <BlurView tint="dark" intensity={40} style={StyleSheet.absoluteFill} />
@@ -117,22 +76,8 @@ export function Dock({ state, navigateToTab }: BottomTabBarProps) {
               </Pressable>
             );
           })}
-        </Animated.View>
+        </View>
 
-        <Animated.View pointerEvents={pillInteractive ? 'none' : 'auto'} style={[styles.miniWrap, miniStyle]}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${LABELS[current?.name] ?? ''}. Show tabs`}
-            onPress={() => {
-              if (collapsed) collapsed.value = 0;
-            }}
-            style={styles.mini}
-          >
-            <BlurView tint="dark" intensity={40} style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.dock }]} />
-            <Ionicons name={currentIcon} size={21} color={colors.text} />
-          </Pressable>
-        </Animated.View>
       </View>
 
       <FocusButton
@@ -192,17 +137,6 @@ const styles = StyleSheet.create({
   },
   item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
   label: { fontSize: 12, fontWeight: '600' },
-  miniWrap: { position: 'absolute', left: 0, top: 0 },
-  mini: {
-    width: H,
-    height: H,
-    borderRadius: H / 2,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
   focus: {
     width: H,
     height: H,

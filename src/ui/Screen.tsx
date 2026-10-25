@@ -10,7 +10,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, T } from './components';
-import { useDockCollapse } from './dockState';
 import { SIDE, colors, space } from './theme';
 
 export const DOCK_SPACE = 110;
@@ -35,14 +34,8 @@ export function Screen({
 }) {
   const insets = useSafeAreaInsets();
   const y = useSharedValue(0);
-  const collapsed = useDockCollapse();
   const onScroll = useAnimatedScrollHandler((e) => {
-    const dy = e.contentOffset.y - y.value;
     y.value = e.contentOffset.y;
-    if (!collapsed) return;
-    if (e.contentOffset.y < 40) collapsed.value = 0;
-    else if (dy > 6) collapsed.value = 1;
-    else if (dy < -6) collapsed.value = 0;
   });
   const barStyle = useAnimatedStyle(() => ({ opacity: interpolate(y.value, [24, 56], [0, 1], 'clamp') }));
 
