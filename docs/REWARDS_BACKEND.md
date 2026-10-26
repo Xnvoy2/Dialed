@@ -1,8 +1,10 @@
 # Rewards backend — design (not built)
 
-Status: **design only**. The app ships with `notLiveRewardsApi` (no offers, zero
-balances). Nothing in this document is implemented. The client contract lives in
-`src/domain/rewardsApi.ts`.
+Status (2026-10-26): **built** in `lockin/server` (see its README) for
+**simulated and Solana devnet payouts only**; mainnet is refused by config.
+Without `DIALED_API_URL` the app shows rewards as not live. Wire types live in
+`src/domain/rewardsApi.ts`. The schema below was the design; the implemented
+one is `server/migrations/001_init.sql`.
 
 ## Principles
 

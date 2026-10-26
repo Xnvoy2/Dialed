@@ -32,6 +32,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       ITSAppUsesNonExemptEncryption: false,
       CFBundleDisplayName: displayName,
       LockinAppGroup: appGroup,
+      // Lets development builds reach a rewards server on your Mac over the local network.
+      NSAppTransportSecurity: { NSAllowsLocalNetworking: true },
     },
     entitlements: {
       // Development signing works without Apple's approval. TestFlight/App Store
@@ -59,10 +61,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ['expo-notifications', { enableBackgroundRemoteNotifications: false }],
     ['expo-build-properties', { ios: { deploymentTarget: '17.6' } }],
     'expo-apple-authentication',
+    'expo-secure-store',
     '@bacons/apple-targets',
   ],
   experiments: { typedRoutes: false },
   extra: {
+    /** Rewards server. Unset = rewards shown as not live. e.g. DIALED_API_URL=http://192.168.0.61:4020 */
+    apiUrl: process.env.DIALED_API_URL ?? null,
     /** Require Sign in with Apple before the arc questions. Flip to false if App Review objects (guideline 5.1.1(v)). */
     requireSignIn: true,
     displayName,

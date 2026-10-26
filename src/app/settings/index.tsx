@@ -14,6 +14,7 @@ import {
   notificationPermission,
   requestNotificationPermission,
 } from '../../native/notifications';
+import { ApiError, api } from '../../api/client';
 import { deleteAll, exportAll } from '../../repos/data';
 import { getOpenSession } from '../../repos/sessions';
 import { useApp } from '../../state/AppProvider';
@@ -42,6 +43,36 @@ export default function Settings() {
           : prefs.blockingEnabled
             ? `On · ${describeSelection(avail.selection)}`
             : 'Off';
+
+  const deleteAccount = (confirmForfeit = false) => {
+    Alert.alert(
+      'Delete your account?',
+      'This removes your Sign in with Apple link, payout address and sessions from the Dialed server. Your habits and history on this phone are not affected.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete account',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.deleteAccount(confirmForfeit);
+              await api.signOut();
+              setPrefs({ serverUserId: null, appleUserId: null, activeReservation: null });
+              Alert.alert('Account deleted');
+            } catch (e) {
+              const err = e as ApiError;
+              if (err.code === 'has_balance') {
+                Alert.alert('You still have rewards', `${err.message}`, [
+                  { text: 'Keep account', style: 'cancel' },
+                  { text: 'Give them up and delete', style: 'destructive', onPress: () => deleteAccount(true) },
+                ]);
+              } else Alert.alert('Couldn’t delete', err.message);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const doExport = async () => {
     try {
@@ -214,6 +245,24 @@ export default function Settings() {
         />
         <ToggleRow title="Haptics" subtitle="Light taps when you check in or start a session" value={prefs.haptics} onChange={(v) => setPrefs({ haptics: v })} />
       </Tiles>
+
+      {prefs.serverUserId ? (
+        <>
+          <SectionHeader title="Account" />
+          <Tiles>
+            <Row
+              icon="log-out-outline"
+              title="Sign out of rewards"
+              subtitle="Your habits and history stay on this phone"
+              onPress={async () => {
+                await api.signOut();
+                setPrefs({ serverUserId: null, activeReservation: null });
+              }}
+            />
+            <Row icon="person-remove-outline" title="Delete account" subtitle="Removes your Dialed account from our server" onPress={() => deleteAccount()} />
+          </Tiles>
+        </>
+      ) : null}
 
       <SectionHeader title="Privacy & data" />
       <Tiles>

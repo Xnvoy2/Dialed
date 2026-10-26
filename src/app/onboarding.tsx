@@ -28,6 +28,7 @@ import {
 import { blocking } from '../native/blocking';
 import { selectionCount } from '../native/blocking/types';
 import { applyPlan } from '../repos/arc';
+import { connectDev, connectWithApple } from '../state/rewards';
 import { useApp } from '../state/AppProvider';
 import { Button, CheckCircle, Chip, IconButton, IconName, ProgressBar, T } from '../ui/components';
 import { useHaptics } from '../ui/haptics';
@@ -123,6 +124,10 @@ export default function Onboarding() {
       });
       const name = c.fullName ? AppleAuthentication.formatFullName(c.fullName, 'short') : '';
       setPrefs({ appleUserId: c.user, displayName: name || prefs.displayName });
+      // Link to the rewards server when one is configured. Failure never blocks setup.
+      connectWithApple(c.identityToken, name || null)
+        .then((u) => u && setPrefs({ serverUserId: u.id }))
+        .catch(() => {});
       next();
     } catch (e: unknown) {
       if ((e as { code?: string })?.code === 'ERR_REQUEST_CANCELED') return;
@@ -366,7 +371,18 @@ export default function Onboarding() {
               style={{ height: 52 }}
               onPress={signIn}
             />
-            {__DEV__ ? <Button title="Skip (development build only)" kind="plain" onPress={next} /> : null}
+            {__DEV__ ? (
+              <Button
+                title="Skip (development build only)"
+                kind="plain"
+                onPress={() => {
+                  connectDev()
+                    .then((u) => u && setPrefs({ serverUserId: u.id }))
+                    .catch(() => {});
+                  next();
+                }}
+              />
+            ) : null}
           </>
         ) : null}
         {canContinue ? <Button title="Continue" onPress={next} /> : null}

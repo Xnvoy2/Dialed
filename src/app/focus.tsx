@@ -19,12 +19,15 @@ import { FocusSession, SessionConflictError, getOpenSession, getSession, setSess
 import { getTask, setTaskCompleted, tasksForDay } from '../repos/tasks';
 import { useApp, useNow, useQuery } from '../state/AppProvider';
 import { useFocusActions } from '../state/focusActions';
+import { shouldSubmit, submitLockIn } from '../state/rewards';
 import {
   Button,
+  Card,
   CheckCircle,
   Chip,
   FadeEdge,
   Group,
+  IconBubble,
   IconButton,
   Note,
   Ring,
@@ -127,6 +130,22 @@ function Setup({ initialTaskId }: { initialTaskId: string | null }) {
             ))}
           </View>
         </View>
+
+        {prefs.activeReservation ? (
+          <View style={{ marginTop: space.xl }}>
+            <Card style={{ flexDirection: 'row', gap: space.m, alignItems: 'center' }}>
+              <IconBubble name="wallet-outline" />
+              <View style={{ flex: 1, gap: 2 }}>
+                <T v="callout">{prefs.activeReservation.title}</T>
+                <T v="footnote" color={colors.secondary}>
+                  {minutes * 60 >= prefs.activeReservation.minActiveSeconds
+                    ? 'This lock-in qualifies if you finish it.'
+                    : `Needs at least ${Math.round(prefs.activeReservation.minActiveSeconds / 60)} minutes.`}
+                </T>
+              </View>
+            </Card>
+          </View>
+        ) : null}
 
         <T v="headline" style={styles.label}>
           Block distractions
@@ -348,6 +367,31 @@ function Completion({ session, onReset }: { session: FocusSession; onReset: () =
   const [taskDone, setTaskDone] = useState(!!task?.completedAt);
   const completed = session.status === 'completed';
   const active = session.activeSeconds ?? 0;
+  const { setPrefs } = useApp();
+  const [reward, setReward] = useState<string | null>(
+    prefs.lastAward?.sessionId === session.id ? prefs.lastAward.message : null,
+  );
+
+  // An accepted reward offer: send this lock-in's numbers once. The server decides.
+  useEffect(() => {
+    const r = prefs.activeReservation;
+    if (!r || prefs.lastAward?.sessionId === session.id) return;
+    if (!shouldSubmit(session, r)) {
+      if (session.kind === 'focus' && session.startedAt >= r.acceptedAt - 60_000) {
+        setReward(`Not long enough for “${r.title}”. The offer is still open.`);
+      }
+      return;
+    }
+    setReward('Checking your reward…');
+    submitLockIn(session, r).then((out) => {
+      setReward(out.message);
+      setPrefs({
+        lastAward: { sessionId: session.id, outcome: out.decision?.outcome ?? 'error', message: out.message },
+        ...(out.clearReservation ? { activeReservation: null } : {}),
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id]);
 
   const saveNote = () => {
     if ((session.note ?? '') !== note) {
@@ -425,6 +469,12 @@ function Completion({ session, onReset }: { session: FocusSession; onReset: () =
             </View>
           ))}
         </View>
+
+        {reward ? (
+          <Tiles style={{ marginHorizontal: -4 }}>
+            <Row icon="wallet-outline" title={reward} subtitle={prefs.activeReservation || prefs.lastAward ? 'Rewards' : null} />
+          </Tiles>
+        ) : null}
 
         {task ? (
           <Tiles style={{ marginHorizontal: -4 }}>

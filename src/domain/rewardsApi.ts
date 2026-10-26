@@ -1,18 +1,15 @@
 /**
- * Contract for a FUTURE rewards server. Nothing here talks to a network today.
- * See docs/REWARDS_BACKEND.md for the server design behind these shapes.
- *
- * Wire rules:
- * - Amounts are strings of integer USDC base units ("1000000" = 1 USDC), so
- *   they survive JSON without float loss.
- * - Every state-changing call carries a client-generated idempotency key.
- * - No task titles, habit names or notes are ever part of a request.
+ * Wire types for the Dialed server (lockin/server). Amounts are strings of
+ * integer USDC base units ("100000" = 0.10 USDC). No task titles, habit names
+ * or notes are ever part of a request.
  */
 export type BaseUnitsString = string;
+export type PayoutNetwork = 'simulated' | 'devnet';
+export type ProgramStatus = 'not_live' | 'live' | 'paused_no_funds';
 
 export interface ProgramInfo {
-  status: 'not_live' | 'live' | 'paused_no_funds';
-  /** Shown verbatim before the user can join anything. */
+  status: ProgramStatus;
+  network: PayoutNetwork;
   termsVersion: string | null;
 }
 
@@ -22,10 +19,14 @@ export interface OfferDTO {
   title: string;
   amount: BaseUnitsString;
   minActiveSeconds: number;
+  requiresBlocking: boolean;
   dailyCap: number;
   weeklyCap: number;
-  /** Funds are reserved server-side before an offer can be accepted. */
-  reservationExpiresAt: string | null;
+  usedToday: number;
+  usedThisWeek: number;
+  terms: string;
+  reservationTtlSeconds: number;
+  heldReservation: { id: string; expiresAt: string } | null;
 }
 
 export interface ReservationDTO {
@@ -33,6 +34,7 @@ export interface ReservationDTO {
   offerId: string;
   amount: BaseUnitsString;
   expiresAt: string;
+  status: string;
 }
 
 /** What the client can honestly report about a session. Signals, not proof. */
@@ -44,36 +46,49 @@ export interface SessionEvidence {
   plannedSeconds: number;
   activeSeconds: number;
   pauseCount: number;
-  /** Shield was applied and read back on device. Not proof of focus. */
   blockingApplied: boolean;
-  /** Placeholder for App Attest / DeviceCheck; proves the app binary, not the work. */
-  attestation: string | null;
   appVersion: string;
 }
 
 export type AwardDecision =
-  | { outcome: 'awarded'; entryId: string; amount: BaseUnitsString; state: 'pending' | 'available' }
+  | { outcome: 'awarded'; entryId: string; amount: BaseUnitsString; state: 'pending' | 'available'; availableAt: string }
   | { outcome: 'not_eligible'; reason: string }
   | { outcome: 'duplicate'; entryId: string };
 
 export interface BalancesDTO {
   pending: BaseUnitsString;
   available: BaseUnitsString;
+  inflight: BaseUnitsString;
   paid: BaseUnitsString;
+  network: PayoutNetwork;
+}
+
+export interface ActivityDTO {
+  awards: { id: string; title: string; amount: BaseUnitsString; state: string; createdAt: string; availableAt: string }[];
+  payouts: { id: string; amount: BaseUnitsString; status: string; network: string; signature: string | null; destination: string; createdAt: string }[];
+}
+
+export interface TransparencyDTO {
+  network: PayoutNetwork;
+  deposited: BaseUnitsString;
+  unallocated: BaseUnitsString;
+  reserved: BaseUnitsString;
+  owed: BaseUnitsString;
+  paid: BaseUnitsString;
+  sources: { source: string; total: BaseUnitsString; deposits: number }[];
 }
 
 export interface PayoutDTO {
   id: string;
+  status: string;
   amount: BaseUnitsString;
-  status: 'requested' | 'submitted' | 'confirmed' | 'failed_retryable' | 'needs_reconciliation';
-  signature: string | null;
 }
 
 export interface RewardsApi {
   program(): Promise<ProgramInfo>;
   offers(): Promise<OfferDTO[]>;
   acceptOffer(offerId: string, idempotencyKey: string): Promise<ReservationDTO>;
-  submitSession(evidence: SessionEvidence, idempotencyKey: string): Promise<AwardDecision>;
+  submitSession(evidence: SessionEvidence): Promise<AwardDecision>;
   balances(): Promise<BalancesDTO>;
   requestPayout(amount: BaseUnitsString, idempotencyKey: string): Promise<PayoutDTO>;
 }
@@ -85,16 +100,21 @@ class NotLiveError extends Error {
   }
 }
 
-/** The only implementation that ships today. */
+/** Used when no server is configured: no offers, zero balances, nothing accepted or paid. */
 export const notLiveRewardsApi: RewardsApi = {
-  program: async () => ({ status: 'not_live', termsVersion: null }),
+  program: async () => ({ status: 'not_live', network: 'simulated', termsVersion: null }),
   offers: async () => [],
   acceptOffer: async () => {
     throw new NotLiveError();
   },
   submitSession: async () => ({ outcome: 'not_eligible', reason: 'USDC rewards are not live.' }),
-  balances: async () => ({ pending: '0', available: '0', paid: '0' }),
+  balances: async () => ({ pending: '0', available: '0', inflight: '0', paid: '0', network: 'simulated' }),
   requestPayout: async () => {
     throw new NotLiveError();
   },
 };
+
+/** The label every server balance carries. There is no real-money network in this build. */
+export function networkLabel(n: PayoutNetwork): string {
+  return n === 'devnet' ? 'Devnet test USDC · not real money' : 'Simulated · not real money';
+}

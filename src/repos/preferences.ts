@@ -32,6 +32,21 @@ export interface Preferences {
   why: string | null;
   /** Always-on Screen Time adult-website filter. */
   adultFilter: boolean;
+  /** Signed in to the rewards server (the token itself lives in the keychain). */
+  serverUserId: string | null;
+  /** An accepted reward offer, submitted with the next lock-in that meets it. */
+  activeReservation: {
+    id: string;
+    offerId: string;
+    title: string;
+    amount: string;
+    minActiveSeconds: number;
+    requiresBlocking: boolean;
+    expiresAt: string;
+    acceptedAt: number;
+  } | null;
+  /** Result of the last submission, shown on the completion screen. */
+  lastAward: { sessionId: string; outcome: string; message: string } | null;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -53,6 +68,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
   goals: [],
   why: null,
   adultFilter: false,
+  serverUserId: null,
+  activeReservation: null,
+  lastAward: null,
 };
 
 export function readPreferences(db: Db): Preferences {

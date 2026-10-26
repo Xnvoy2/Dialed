@@ -132,9 +132,9 @@ describe('export and delete', () => {
 describe('future rewards API (shipping implementation)', () => {
   it('reports not live, no offers, zero balances, and refuses to accept or pay', async () => {
     const { notLiveRewardsApi: api } = await import('../src/domain/rewardsApi');
-    expect(await api.program()).toEqual({ status: 'not_live', termsVersion: null });
+    expect(await api.program()).toEqual({ status: 'not_live', network: 'simulated', termsVersion: null });
     expect(await api.offers()).toEqual([]);
-    expect(await api.balances()).toEqual({ pending: '0', available: '0', paid: '0' });
+    expect(await api.balances()).toMatchObject({ pending: '0', available: '0', paid: '0' });
     await expect(api.acceptOffer('x', 'k')).rejects.toThrow(/not live/);
     await expect(api.requestPayout('1', 'k')).rejects.toThrow(/not live/);
   });
