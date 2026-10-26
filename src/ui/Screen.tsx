@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, T } from './components';
+import { GlassBackdrop } from './GlassBackdrop';
 import { SIDE, colors, space } from './theme';
 
 export const DOCK_SPACE = 110;
@@ -25,12 +26,14 @@ export function Screen({
   headerRight,
   children,
   refreshControl,
+  backdrop = 'ring',
 }: {
   title: string;
   subtitle?: string;
   headerRight?: React.ReactNode;
   children: React.ReactNode;
   refreshControl?: React.ReactElement<RefreshControlProps>;
+  backdrop?: 'ring' | 'prism' | 'both' | 'none';
 }) {
   const insets = useSafeAreaInsets();
   const y = useSharedValue(0);
@@ -41,6 +44,7 @@ export function Screen({
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {backdrop !== 'none' ? <GlassBackdrop variant={backdrop} /> : null}
       <Animated.ScrollView
         onScroll={onScroll}
         scrollEventThrottle={16}

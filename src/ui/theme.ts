@@ -2,7 +2,7 @@ import { TextStyle } from 'react-native';
 
 /** Charcoal and white. No accent colour by design. */
 export const colors = {
-  bg: '#111112',
+  bg: '#050506',
   surface: '#1C1C1E',
   surfaceRaised: '#2A2A2D',
   surfacePressed: '#313134',
@@ -18,7 +18,7 @@ export const colors = {
 } as const;
 
 export const space = { xs: 4, s: 8, m: 12, l: 16, xl: 20, xxl: 28, xxxl: 40 } as const;
-export const radius = { s: 10, m: 14, l: 22, pill: 999 } as const;
+export const radius = { s: 10, m: 14, l: 26, pill: 999 } as const;
 export const SIDE = 16;
 /** Gap between stacked tiles. */
 export const TILE_GAP = 10;
@@ -35,7 +35,8 @@ export type Variant =
   | 'footnote'
   | 'caption'
   | 'timer'
-  | 'display';
+  | 'display'
+  | 'hero';
 
 export const type: Record<Variant, TextStyle> = {
   largeTitle: { fontSize: 34, lineHeight: 41, fontWeight: '700', letterSpacing: 0.37 },
@@ -48,6 +49,7 @@ export const type: Record<Variant, TextStyle> = {
   footnote: { fontSize: 13, lineHeight: 18, fontWeight: '400' },
   caption: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
   timer: { fontSize: 80, lineHeight: 88, fontWeight: '300', fontVariant: ['tabular-nums'], letterSpacing: -1.5 },
+  hero: { fontSize: 36, lineHeight: 39, fontWeight: '700', letterSpacing: -1.1 },
   display: { fontSize: 44, lineHeight: 50, fontWeight: '700', fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
 };
 

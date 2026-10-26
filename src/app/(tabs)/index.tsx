@@ -13,6 +13,7 @@ import {
 import { formatCountdown, formatMinutes, remainingMs } from '../../domain/focus';
 import { describeSchedule, isDueOn, weeklyCount } from '../../domain/habits';
 import { arcProgress } from '../../domain/arc';
+import { insight } from '../../domain/insight';
 import { willBlock } from '../../domain/lockin';
 import { focusStreak } from '../../domain/streaks';
 import { checkIn, histories, listHabits, undoCheckIn } from '../../repos/habits';
@@ -32,6 +33,7 @@ import {
   CheckCircle,
   EmptyState,
   IconButton,
+  IconName,
   PillMeter,
   ProgressBar,
   Ring,
@@ -123,19 +125,29 @@ export default function TodayScreen() {
   };
 
   return (
-    <Screen title="Today" subtitle={`${greeting(new Date().getHours())} · ${formatDayLong(today)}`}>
+    <Screen backdrop="both" title="Today" subtitle={`${greeting(new Date().getHours())} · ${formatDayLong(today)}`}>
       <View style={{ gap: TILE_GAP }}>
-        {open ? <ActiveSessionBanner /> : <LockInButton taskId={next?.id ?? null} minutes={prefs.focusMinutes} />}
+        {open ? <ActiveSessionBanner /> : null}
 
-        <ArcCard />
+        <InsightCard
+          taskId={next?.id ?? null}
+          focusedMinutes={Math.floor(focusedToday / 60)}
+          habitsDone={habitsDone}
+          habitsTotal={habitsToday.length}
+          openTasks={openTasks.length}
+          streak={focusStreak(days, today).current}
+          locked={!!open}
+        />
 
-        <HeroCard
-          done={doneTasks.length}
-          total={tasks.length}
-          focusedSeconds={focusedToday}
+        <SummaryCard
+          focusedMinutes={Math.floor(focusedToday / 60)}
+          tasksDone={doneTasks.length}
+          tasksTotal={tasks.length}
           habitsDone={habitsDone}
           habitsTotal={habitsToday.length}
         />
+
+        <ArcCard />
 
         <FocusWeekCard days={days} />
 
@@ -337,64 +349,6 @@ function taskSubtitle(t: Task, focusedSeconds: number): string | null {
   return parts.length ? parts.join(' · ') : null;
 }
 
-function HeroCard({
-  done,
-  total,
-  focusedSeconds,
-  habitsDone,
-  habitsTotal,
-}: {
-  done: number;
-  total: number;
-  focusedSeconds: number;
-  habitsDone: number;
-  habitsTotal: number;
-}) {
-  const minutes = Math.floor(focusedSeconds / 60);
-  return (
-    <Card style={{ gap: space.l, padding: space.xl }}>
-      <View
-        style={{ flexDirection: 'row', alignItems: 'center', gap: space.xl }}
-        accessible
-        accessibilityLabel={`${done} of ${total} tasks done. ${minutes} minutes focused today. ${habitsDone} of ${habitsTotal} habits done.`}
-      >
-        <Ring size={132} stroke={10} progress={total ? done / total : 0}>
-          <RollingNumber value={done} v="display" />
-          <T v="footnote" color={colors.secondary} style={{ marginTop: -2 }}>
-            of {total} {total === 1 ? 'task' : 'tasks'}
-          </T>
-        </Ring>
-        <View style={{ flex: 1, alignItems: 'flex-end', gap: space.l }}>
-          <View style={{ alignItems: 'flex-end' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-              <RollingNumber value={minutes} v="title2" />
-              <T v="subhead" color={colors.secondary}>
-                min
-              </T>
-            </View>
-            <T v="footnote" color={colors.secondary}>
-              focused today
-            </T>
-          </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <T v="title2" style={{ fontVariant: ['tabular-nums'] }}>
-              {habitsDone}
-              <T v="subhead" color={colors.secondary}>
-                {' '}
-                of {habitsTotal}
-              </T>
-            </T>
-            <T v="footnote" color={colors.secondary}>
-              habits done
-            </T>
-          </View>
-        </View>
-      </View>
-      {habitsTotal > 1 ? <PillMeter done={habitsDone} total={habitsTotal} /> : null}
-    </Card>
-  );
-}
-
 /** Days this week with at least a minute of focus, plus the current and best streak. */
 function FocusWeekCard({ days }: { days: ReadonlySet<DayKey> }) {
   const { today, prefs } = useApp();
@@ -520,34 +474,112 @@ function ArcCard() {
   );
 }
 
-/** The app's main action: start a lock-in, blocking included when it's set up. */
-function LockInButton({ taskId, minutes }: { taskId: string | null; minutes: number }) {
+/**
+ * The centrepiece, after the reference: one sentence about the real day in
+ * two tones, refracting the glass shapes behind it, with the Lock in button.
+ */
+function InsightCard(p: {
+  taskId: string | null;
+  focusedMinutes: number;
+  habitsDone: number;
+  habitsTotal: number;
+  openTasks: number;
+  streak: number;
+  locked: boolean;
+}) {
+  const { prefs, today } = useApp();
   const r = useBlockingReadiness();
-  const sub = willBlock(r)
-    ? `${minutes} min · blocks ${r.kind === 'ready' ? r.count : 0} ${r.kind === 'ready' && r.count === 1 ? 'app' : 'apps'}`
+  const arc = prefs.arcStart ? arcProgress(prefs.arcStart, prefs.arcDays, today) : null;
+  const segs = insight({
+    hour: new Date().getHours(),
+    arcDay: arc && !arc.done ? arc.day : null,
+    arcLength: arc ? arc.length : null,
+    focusedMinutes: p.focusedMinutes,
+    focusMinutesDefault: prefs.focusMinutes,
+    habitsDone: p.habitsDone,
+    habitsTotal: p.habitsTotal,
+    openTasks: p.openTasks,
+    streak: p.streak,
+  });
+  const blockNote = willBlock(r)
+    ? `Blocks ${r.kind === 'ready' ? r.count : 0} apps`
     : r.kind === 'unavailable'
-      ? `${minutes} min focus`
-      : `${minutes} min · set up app blocking first`;
+      ? `${prefs.focusMinutes} min`
+      : 'Set up blocking';
   return (
-    <Pressable
-      onPress={() => router.push(taskId ? { pathname: '/focus', params: { taskId } } : '/focus')}
-      accessibilityRole="button"
-      accessibilityLabel={`Lock in. ${sub}`}
-      style={({ pressed }) => [styles.lockIn, pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}
-    >
-      <View style={styles.lockInIcon}>
-        <Ionicons name="lock-closed" size={22} color={colors.text} />
+    <Card style={{ padding: space.xl, paddingTop: space.xxl, minHeight: 340, justifyContent: 'space-between' }}>
+      <T v="hero" accessibilityRole="header" accessibilityLabel={segs.map((x) => x.text).join(' ')}>
+        {segs.map((x, i) => (
+          <T key={i} v="hero" color={x.dim ? 'rgba(255,255,255,0.46)' : colors.text}>
+            {i > 0 ? ' ' : ''}
+            {x.text}
+          </T>
+        ))}
+      </T>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: space.xl }}>
+        <Pressable
+          onPress={() => router.navigate('/habits')}
+          accessibilityRole="button"
+          style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, flex: 1 }, pressed && { opacity: 0.6 }]}
+        >
+          <T v="callout" style={{ fontWeight: '600' }}>
+            {prefs.why ? 'Your why' : 'Your arc'}
+          </T>
+          <Ionicons name="chevron-forward" size={15} color={colors.text} />
+        </Pressable>
+        {!p.locked ? (
+          <View style={{ alignItems: 'center', gap: 6 }}>
+            <Pressable
+              onPress={() => router.push(p.taskId ? { pathname: '/focus', params: { taskId: p.taskId } } : '/focus')}
+              accessibilityRole="button"
+              accessibilityLabel={`Lock in. ${blockNote}`}
+              style={({ pressed }) => [styles.lockCircle, pressed && { transform: [{ scale: 0.94 }] }]}
+            >
+              <Ionicons name="lock-closed" size={30} color={colors.onPrimary} />
+            </Pressable>
+            <T v="caption" color={colors.secondary}>
+              {blockNote}
+            </T>
+          </View>
+        ) : null}
       </View>
-      <View style={{ flex: 1 }}>
-        <T v="title2" color={colors.onPrimary} style={{ fontWeight: '700' }}>
-          Lock in
+    </Card>
+  );
+}
+
+function SummaryCard(p: { focusedMinutes: number; tasksDone: number; tasksTotal: number; habitsDone: number; habitsTotal: number }) {
+  const stats: [IconName, number, string, string][] = [
+    ['timer-outline', p.focusedMinutes, 'min', 'Focus'],
+    ['checkmark-done-outline', p.tasksDone, `/${p.tasksTotal}`, 'Tasks'],
+    ['repeat-outline', p.habitsDone, `/${p.habitsTotal}`, 'Habits'],
+  ];
+  return (
+    <Card onPress={() => router.navigate('/progress')} accessibilityLabel="Summary. Opens progress." style={{ gap: space.m }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <T v="footnote" color={colors.secondary} style={{ flex: 1 }}>
+          Summary
         </T>
-        <T v="footnote" color="#46464B">
-          {sub}
-        </T>
+        <Ionicons name="chevron-forward" size={14} color={colors.secondary} />
       </View>
-      <Ionicons name="arrow-forward" size={22} color={colors.onPrimary} />
-    </Pressable>
+      <View style={styles.summaryInner}>
+        {stats.map(([icon, v, unit, label]) => (
+          <View key={label} style={{ flex: 1, gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
+              <RollingNumber value={v} v="title" />
+              <T v="caption" color={colors.tertiary}>
+                {unit}
+              </T>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={styles.statDot}>
+                <Ionicons name={icon} size={11} color={colors.onPrimary} />
+              </View>
+              <T v="footnote">{label}</T>
+            </View>
+          </View>
+        ))}
+      </View>
+    </Card>
   );
 }
 
@@ -585,6 +617,28 @@ function ActiveSessionBanner() {
 }
 
 const styles = StyleSheet.create({
+  lockCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.text,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryInner: {
+    flexDirection: 'row',
+    padding: space.l,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  statDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.text,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   lockIn: {
     marginHorizontal: SIDE - 4,
     paddingVertical: space.l,

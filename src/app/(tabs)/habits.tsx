@@ -2,7 +2,9 @@ import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { DayKey, addDays, formatRange, startOfWeek } from '../../domain/dates';
-import { DayStatus, consistency, describeSchedule, summarizeWeek } from '../../domain/habits';
+import { DayStatus, WeekSummary, consistency, describeSchedule, summarizeWeek } from '../../domain/habits';
+import type { Habit } from '../../repos/habits';
+import { Glass } from '../../ui/Glass';
 import { checkIn, histories, listHabits, undoCheckIn } from '../../repos/habits';
 import { useApp, useQuery } from '../../state/AppProvider';
 import { EmptyState, Group, IconButton, Ring, Row, SectionHeader, SmallButton, T } from '../../ui/components';
@@ -53,27 +55,28 @@ export default function HabitsScreen() {
       headerRight={<IconButton name="add" label="New habit" onPress={add} size={38} />}
     >
       {items.length === 0 ? (
-        <View style={styles.card}>
+        <Glass radius={radius.l} style={styles.card}>
           <EmptyState
             icon="repeat-outline"
             title="No habits yet"
             body="Start small: something you can do on most days. You can plan rest days, and missing one never wipes your history."
             actions={<SmallButton title="Create a habit" icon="add" onPress={add} />}
           />
-        </View>
+        </Glass>
       ) : (
         <View style={{ gap: TILE_GAP }}>
           <Summary items={items} />
           {items.map(({ habit, week, stats }) => {
             const weekly = habit.frequency === 'weekly';
-            const done = weekly ? Math.min(week.days.filter((d) => d.status === 'done').length, 7) : week.completed;
+            const sofar = soFar(habit, week);
             return (
-              <Pressable
+              <Glass
                 key={habit.id}
+                radius={radius.l}
+                interactive
                 onPress={() => router.push({ pathname: '/habit/[id]', params: { id: habit.id } })}
-                accessibilityRole="button"
                 accessibilityLabel={`${habit.name}. ${describeSchedule(habit)}. Opens history.`}
-                style={({ pressed }) => [styles.card, pressed && { backgroundColor: colors.surfacePressed }]}
+                style={styles.card}
               >
                 <View style={styles.head}>
                   <View style={{ flex: 1 }}>
@@ -86,11 +89,11 @@ export default function HabitsScreen() {
                     </T>
                   </View>
                   <T v="subhead" color={colors.secondary} style={{ fontVariant: ['tabular-nums'] }}>
-                    {weekly ? `${done} of ${habit.weeklyTarget}` : `${done} of ${week.opportunities}`}
+                    {`${sofar.done} of ${sofar.of}`}
                   </T>
                 </View>
                 <WeekStrip days={week.days} today={today} onPressDay={(day, status) => toggle(habit.id, day, status)} />
-              </Pressable>
+              </Glass>
             );
           })}
           {archived.length > 0 ? (
@@ -119,18 +122,31 @@ export default function HabitsScreen() {
   );
 }
 
+/** Counts today as an opportunity, so Monday reads "0 of 1", not "0 of 0". Weekly habits count against their target. */
+function soFar(habit: Habit, week: WeekSummary): { done: number; of: number } {
+  const done = week.days.filter((d) => d.status === 'done').length;
+  if (habit.frequency === 'weekly') return { done: Math.min(done, habit.weeklyTarget), of: habit.weeklyTarget };
+  const of = week.days.filter((d) => d.status === 'done' || d.status === 'missed' || d.status === 'pending').length;
+  return { done, of };
+}
+
 function Summary({
   items,
 }: {
-  items: { habit: { frequency: string }; week: { completed: number; opportunities: number }; stats: { lifetime: number; streak: number } }[];
+  items: { habit: Habit; week: WeekSummary; stats: { lifetime: number; streak: number } }[];
 }) {
-  const done = items.reduce((n, i) => n + i.week.completed, 0);
-  const opp = items.reduce((n, i) => n + i.week.opportunities, 0);
+  const totals = items.map((i) => soFar(i.habit, i.week));
+  const done = totals.reduce((n, t) => n + t.done, 0);
+  const opp = totals.reduce((n, t) => n + t.of, 0);
   const lifetime = items.reduce((n, i) => n + i.stats.lifetime, 0);
   const best = Math.max(0, ...items.map((i) => i.stats.streak));
   return (
-    <View
+    <Glass
+      radius={radius.l}
       style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: space.xl, padding: space.xl }]}
+    >
+      <View
+      style={{ flexDirection: 'row', alignItems: 'center', gap: space.xl, flex: 1 }}
       accessible
       accessibilityLabel={`This week ${done} of ${opp} scheduled check-ins done. ${lifetime} check-ins all time. Longest current streak ${best}.`}
     >
@@ -148,7 +164,7 @@ function Summary({
             {done} of {opp}
           </T>
           <T v="footnote" color={colors.secondary}>
-            scheduled so far this week
+            done so far this week
           </T>
         </View>
         <View style={{ flexDirection: 'row', gap: space.xl }}>
@@ -166,7 +182,8 @@ function Summary({
           </View>
         </View>
       </View>
-    </View>
+      </View>
+    </Glass>
   );
 }
 
@@ -175,8 +192,6 @@ const styles = StyleSheet.create({
     marginHorizontal: SIDE - 4,
     padding: space.l,
     gap: space.l,
-    backgroundColor: colors.surface,
-    borderRadius: radius.l,
   },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: space.m },
 });

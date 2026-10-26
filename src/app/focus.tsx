@@ -15,6 +15,7 @@ import {
 import { describeBlockingError, shieldSummary, startLabel, willBlock } from '../domain/lockin';
 import { requestNotificationPermission } from '../native/notifications';
 import { BlockingCard, useBlockingReadiness } from '../ui/BlockingCard';
+import { GlassBackdrop } from '../ui/GlassBackdrop';
 import { FocusSession, SessionConflictError, getOpenSession, getSession, setSessionNote } from '../repos/sessions';
 import { getTask, setTaskCompleted, tasksForDay } from '../repos/tasks';
 import { useApp, useNow, useQuery } from '../state/AppProvider';
@@ -92,6 +93,7 @@ function Setup({ initialTaskId }: { initialTaskId: string | null }) {
 
   return (
     <View style={[styles.fill, { paddingTop: insets.top }]}>
+      <GlassBackdrop variant="prism" />
       <TopBar onClose={() => router.back()} />
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} keyboardShouldPersistTaps="handled">
         <View style={{ paddingHorizontal: SIDE, marginBottom: space.xl }}>
@@ -285,6 +287,7 @@ function ActiveSession({ session, onFinished }: { session: FocusSession; onFinis
   const label = session.kind === 'break' ? 'Break' : session.taskTitle ?? 'Focus';
   return (
     <View style={[styles.fill, { paddingTop: insets.top, paddingBottom: insets.bottom + space.xl }]}>
+      <GlassBackdrop variant="ring" />
       <TopBar onClose={() => router.back()} closeIcon="chevron-down" closeLabel="Minimise. The session keeps running." />
       <View style={styles.center}>
         <T v="headline" color={colors.secondary} center numberOfLines={2} style={{ paddingHorizontal: SIDE * 2 }}>

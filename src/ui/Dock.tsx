@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import React, { useEffect, useState } from 'react';
@@ -10,6 +9,7 @@ import { activeMs } from '../domain/focus';
 import { getOpenSession } from '../repos/sessions';
 import { useApp, useNow, useQuery } from '../state/AppProvider';
 import { IconName, Ring } from './components';
+import { Glass } from './Glass';
 import { useHaptics } from './haptics';
 import { colors } from './theme';
 
@@ -50,8 +50,7 @@ export function Dock({ state, navigateToTab }: BottomTabBarProps) {
           style={styles.pill}
           onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width - 8)}
         >
-          <BlurView tint="dark" intensity={40} style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.dock }]} />
+          <Glass radius={H / 2} tint="rgba(20,20,22,0.35)" style={StyleSheet.absoluteFill} />
           {width > 0 ? <Animated.View style={[styles.indicator, { width: itemW }, indicator]} /> : null}
           {state.routes.map((route, i) => {
             const focused = state.index === i;
@@ -103,8 +102,7 @@ function FocusButton({ onPress }: { onPress: () => void }) {
       onPress={onPress}
       style={({ pressed }) => [styles.focus, pressed && { transform: [{ scale: 0.94 }] }]}
     >
-      <BlurView tint="dark" intensity={40} style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.dock }]} />
+      <Glass radius={H / 2} tint="rgba(20,20,22,0.35)" style={StyleSheet.absoluteFill} interactive />
       {open ? (
         <Ring size={H - 8} stroke={3} progress={progress} animate={false}>
           <Ionicons name={open.status === 'paused' ? 'pause' : 'hourglass'} size={22} color={colors.text} />
@@ -124,8 +122,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 4,
     overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
   },
   indicator: {
     position: 'absolute',
@@ -133,7 +129,7 @@ const styles = StyleSheet.create({
     left: 4,
     bottom: 4,
     borderRadius: (H - 8) / 2,
-    backgroundColor: colors.dockActive,
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
   item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
   label: { fontSize: 12, fontWeight: '600' },
@@ -144,7 +140,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
   },
 });

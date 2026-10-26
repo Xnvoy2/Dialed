@@ -15,6 +15,7 @@ import {
 import Animated, { Easing, useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useApp } from '../state/AppProvider';
+import { Glass } from './Glass';
 import { MIN_TOUCH, SIDE, TEXT_SCALE, TILE_GAP, Variant, colors, radius, space, type } from './theme';
 
 export type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -83,14 +84,14 @@ export function SectionHeader({
 export function Group({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const items = React.Children.toArray(children).filter(Boolean);
   return (
-    <View style={[styles.group, style]}>
+    <Glass radius={radius.l} style={[{ marginHorizontal: SIDE - 4 }, style]}>
       {items.map((child, i) => (
         <React.Fragment key={i}>
           {i > 0 ? <View style={styles.separator} /> : null}
           {child}
         </React.Fragment>
       ))}
-    </View>
+    </Glass>
   );
 }
 
@@ -100,9 +101,9 @@ export function Tiles({ children, style }: { children: React.ReactNode; style?: 
   return (
     <View style={[{ marginHorizontal: SIDE - 4, gap: TILE_GAP }, style]}>
       {items.map((child, i) => (
-        <View key={i} style={styles.tile}>
+        <Glass key={i} radius={radius.l}>
           {child}
-        </View>
+        </Glass>
       ))}
     </View>
   );
@@ -120,17 +121,16 @@ export function Card({
   accessibilityLabel?: string;
 }) {
   if (!onPress) {
-    return <View style={[styles.card, style]}>{children}</View>;
+    return (
+      <Glass radius={radius.l} style={[styles.card, style]}>
+        {children}
+      </Glass>
+    );
   }
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [styles.card, style, pressed && { backgroundColor: colors.surfacePressed }]}
-    >
+    <Glass radius={radius.l} style={[styles.card, style]} onPress={onPress} accessibilityLabel={accessibilityLabel} interactive>
       {children}
-    </Pressable>
+    </Glass>
   );
 }
 
@@ -655,10 +655,8 @@ export const styles = StyleSheet.create({
   card: {
     marginHorizontal: SIDE - 4,
     padding: space.l,
-    backgroundColor: colors.surface,
-    borderRadius: radius.l,
   },
-  separator: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: space.l },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.09)', marginLeft: space.l },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
