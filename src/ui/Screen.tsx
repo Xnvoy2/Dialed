@@ -1,4 +1,3 @@
-import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import React from 'react';
 import { RefreshControlProps, StyleSheet, View } from 'react-native';
@@ -63,8 +62,7 @@ export function Screen({
 
       <View pointerEvents="box-none" style={[styles.bar, { paddingTop: insets.top, height: insets.top + BAR }]}>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, barStyle]}>
-          <BlurView tint="dark" intensity={60} style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(22,22,23,0.6)' }]} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />
           <View style={styles.hairline} />
         </Animated.View>
         <Animated.View pointerEvents="none" style={[styles.smallTitle, { top: insets.top }, barStyle]}>
