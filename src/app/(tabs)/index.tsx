@@ -125,7 +125,7 @@ export default function TodayScreen() {
   };
 
   return (
-    <Screen backdrop="both" title="Today" subtitle={`${greeting(new Date().getHours())} · ${formatDayLong(today)}`}>
+    <Screen backdrop="today" title="Today" subtitle={`${greeting(new Date().getHours())} · ${formatDayLong(today)}`}>
       <View style={{ gap: TILE_GAP }}>
         {open ? <ActiveSessionBanner /> : null}
 

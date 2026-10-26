@@ -65,7 +65,7 @@ export default function ProgressScreen() {
   const recaps = Array.from({ length: RECAP_WEEKS }, (_, i) => addDays(weekStart, -7 * i)).filter((ws) => ws >= firstWeek);
 
   return (
-    <Screen title="Progress" subtitle="From what you’ve recorded on this phone">
+    <Screen backdrop="progress" title="Progress" subtitle="From what you’ve recorded on this phone">
       <View style={{ gap: TILE_GAP }}>
         <Card style={{ padding: space.xl, gap: 2 }}>
           <T v="subhead" color={colors.secondary}>

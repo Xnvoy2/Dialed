@@ -93,7 +93,7 @@ function Setup({ initialTaskId }: { initialTaskId: string | null }) {
 
   return (
     <View style={[styles.fill, { paddingTop: insets.top }]}>
-      <GlassBackdrop variant="prism" />
+      <GlassBackdrop scene="lockin" />
       <TopBar onClose={() => router.back()} />
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} keyboardShouldPersistTaps="handled">
         <View style={{ paddingHorizontal: SIDE, marginBottom: space.xl }}>
@@ -287,7 +287,7 @@ function ActiveSession({ session, onFinished }: { session: FocusSession; onFinis
   const label = session.kind === 'break' ? 'Break' : session.taskTitle ?? 'Focus';
   return (
     <View style={[styles.fill, { paddingTop: insets.top, paddingBottom: insets.bottom + space.xl }]}>
-      <GlassBackdrop variant="ring" />
+      <GlassBackdrop scene="lockin" />
       <TopBar onClose={() => router.back()} closeIcon="chevron-down" closeLabel="Minimise. The session keeps running." />
       <View style={styles.center}>
         <T v="headline" color={colors.secondary} center numberOfLines={2} style={{ paddingHorizontal: SIDE * 2 }}>
