@@ -53,4 +53,18 @@ export const type: Record<Variant, TextStyle> = {
   display: { fontSize: 44, lineHeight: 50, fontWeight: '700', fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
 };
 
+/** Geist (SIL Open Font License). Custom fonts pick a file per weight, so map weight to family. */
+const GEIST: Record<string, string> = {
+  '300': 'Geist_300Light',
+  '400': 'Geist_400Regular',
+  '500': 'Geist_500Medium',
+  '600': 'Geist_600SemiBold',
+  '700': 'Geist_700Bold',
+  '800': 'Geist_800ExtraBold',
+};
+export function font(weight: TextStyle['fontWeight'] = '400'): string {
+  const w = weight === 'bold' ? '700' : weight === 'normal' ? '400' : String(weight);
+  return GEIST[w] ?? GEIST['400'];
+}
+
 export const TEXT_SCALE = { default: 1, large: 1.12, larger: 1.25 } as const;

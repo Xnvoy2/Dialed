@@ -9,6 +9,7 @@ import {
   Switch,
   Text,
   TextProps,
+  TextStyle,
   View,
   ViewStyle,
 } from 'react-native';
@@ -16,7 +17,7 @@ import Animated, { Easing, useAnimatedProps, useSharedValue, withTiming } from '
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useApp } from '../state/AppProvider';
 import { Glass } from './Glass';
-import { MIN_TOUCH, SIDE, TEXT_SCALE, TILE_GAP, Variant, colors, radius, space, type } from './theme';
+import { MIN_TOUCH, SIDE, TEXT_SCALE, TILE_GAP, Variant, colors, font, radius, space, type } from './theme';
 
 export type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -36,10 +37,11 @@ export function T({
     scale === 1
       ? base
       : { ...base, fontSize: (base.fontSize ?? 17) * scale, lineHeight: base.lineHeight ? base.lineHeight * scale : undefined };
+  const weight = (StyleSheet.flatten(style) as TextStyle | undefined)?.fontWeight ?? base.fontWeight;
   return (
     <Text
       maxFontSizeMultiplier={v === 'timer' ? 1.3 : 2.2}
-      style={[scaled, { color }, center && { textAlign: 'center' }, style]}
+      style={[scaled, { color }, center && { textAlign: 'center' }, style, { fontFamily: font(weight), fontWeight: undefined }]}
       {...rest}
     />
   );

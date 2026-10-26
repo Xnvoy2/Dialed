@@ -47,6 +47,8 @@ export interface Preferences {
   } | null;
   /** Result of the last submission, shown on the completion screen. */
   lastAward: { sessionId: string; outcome: string; message: string } | null;
+  /** Highest level already celebrated, so a level-up sheet shows once. */
+  celebratedLevel: number;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -71,6 +73,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   serverUserId: null,
   activeReservation: null,
   lastAward: null,
+  celebratedLevel: 1,
 };
 
 export function readPreferences(db: Db): Preferences {

@@ -50,7 +50,6 @@ export default function HabitsScreen() {
 
   return (
     <Screen
-      backdrop="habits"
       title="Habits"
       subtitle={`This week · ${formatRange(weekStart, addDays(weekStart, 6))}`}
       headerRight={<IconButton name="add" label="New habit" onPress={add} size={38} />}

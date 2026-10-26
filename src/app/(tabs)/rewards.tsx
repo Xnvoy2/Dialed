@@ -362,7 +362,7 @@ export default function RewardsScreen() {
 
 function NotConfigured() {
   return (
-    <Screen backdrop="rewards" title="Rewards" subtitle="USDC rewards are not live">
+    <Screen title="Rewards" subtitle="USDC rewards are not live">
       <Card style={{ flexDirection: 'row', gap: space.m, alignItems: 'flex-start' }}>
         <IconBubble name="hourglass-outline" />
         <View style={{ flex: 1, gap: 2 }}>

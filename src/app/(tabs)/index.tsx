@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
+import { levelFor } from '../../domain/level';
+import { LevelChip } from '../../ui/Level';
 import { ActionSheetIOS, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 import {
   DayKey,
@@ -17,7 +19,7 @@ import { insight } from '../../domain/insight';
 import { willBlock } from '../../domain/lockin';
 import { focusStreak } from '../../domain/streaks';
 import { checkIn, histories, listHabits, undoCheckIn } from '../../repos/habits';
-import { focusDays, focusSecondsByDay, focusSecondsForTask, getOpenSession } from '../../repos/sessions';
+import { focusDays, focusSecondsByDay, focusSecondsForTask, focusTotals, getOpenSession } from '../../repos/sessions';
 import {
   Task,
   deleteTask,
@@ -59,6 +61,7 @@ function greeting(hour: number): string {
 
 export default function TodayScreen() {
   const { db, today, prefs, refresh } = useApp();
+  const levelTotals = useQuery((d) => focusTotals(d));
   const haptics = useHaptics();
   const [reordering, setReordering] = useState(false);
   const [showDone, setShowDone] = useState(false);
@@ -125,7 +128,7 @@ export default function TodayScreen() {
   };
 
   return (
-    <Screen backdrop="today" title="Today" subtitle={`${greeting(new Date().getHours())} · ${formatDayLong(today)}`}>
+    <Screen headerRight={<LevelChip level={levelFor(levelTotals.seconds).level} onPress={() => router.push('/level')} />} title="Today" subtitle={`${greeting(new Date().getHours())} · ${formatDayLong(today)}`}>
       <View style={{ gap: TILE_GAP }}>
         {open ? <ActiveSessionBanner /> : null}
 

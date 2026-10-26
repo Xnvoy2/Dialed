@@ -54,7 +54,7 @@ export function shouldSubmit(s: FocusSession, r: Preferences['activeReservation'
 export async function submitLockIn(
   s: FocusSession,
   r: NonNullable<Preferences['activeReservation']>,
-): Promise<{ decision: AwardDecision | null; message: string; clearReservation: boolean }> {
+): Promise<{ decision: AwardDecision | null; message: string; clearReservation: boolean; network?: string | null }> {
   try {
     const d = await httpRewardsApi.submitSession({
       clientSessionId: s.id,
@@ -69,7 +69,12 @@ export async function submitLockIn(
     });
     if (d.outcome === 'awarded') {
       const amt = formatUsdc(usdc(Number(d.amount)));
+      const network = await httpRewardsApi
+        .program()
+        .then((p) => p.network as string)
+        .catch(() => null);
       return {
+        network,
         decision: d,
         message: d.state === 'available' ? `Earned ${amt}. Ready to pay out.` : `Earned ${amt}. Available after review.`,
         clearReservation: true,

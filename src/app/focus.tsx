@@ -15,12 +15,13 @@ import {
 import { describeBlockingError, shieldSummary, startLabel, willBlock } from '../domain/lockin';
 import { requestNotificationPermission } from '../native/notifications';
 import { BlockingCard, useBlockingReadiness } from '../ui/BlockingCard';
-import { GlassBackdrop } from '../ui/GlassBackdrop';
-import { FocusSession, SessionConflictError, getOpenSession, getSession, setSessionNote } from '../repos/sessions';
+import { FocusSession, SessionConflictError, focusTotals, getOpenSession, getSession, setSessionNote } from '../repos/sessions';
 import { getTask, setTaskCompleted, tasksForDay } from '../repos/tasks';
 import { useApp, useNow, useQuery } from '../state/AppProvider';
 import { useFocusActions } from '../state/focusActions';
 import { shouldSubmit, submitLockIn } from '../state/rewards';
+import { levelFor, levelName, levelUp } from '../domain/level';
+import { Celebration, CelebrationSheet } from '../ui/CelebrationSheet';
 import {
   Button,
   Card,
@@ -93,7 +94,6 @@ function Setup({ initialTaskId }: { initialTaskId: string | null }) {
 
   return (
     <View style={[styles.fill, { paddingTop: insets.top }]}>
-      <GlassBackdrop scene="lockin" />
       <TopBar onClose={() => router.back()} />
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} keyboardShouldPersistTaps="handled">
         <View style={{ paddingHorizontal: SIDE, marginBottom: space.xl }}>
@@ -287,7 +287,6 @@ function ActiveSession({ session, onFinished }: { session: FocusSession; onFinis
   const label = session.kind === 'break' ? 'Break' : session.taskTitle ?? 'Focus';
   return (
     <View style={[styles.fill, { paddingTop: insets.top, paddingBottom: insets.bottom + space.xl }]}>
-      <GlassBackdrop scene="lockin" />
       <TopBar onClose={() => router.back()} closeIcon="chevron-down" closeLabel="Minimise. The session keeps running." />
       <View style={styles.center}>
         <T v="headline" color={colors.secondary} center numberOfLines={2} style={{ paddingHorizontal: SIDE * 2 }}>
@@ -374,6 +373,32 @@ function Completion({ session, onReset }: { session: FocusSession; onReset: () =
   const [reward, setReward] = useState<string | null>(
     prefs.lastAward?.sessionId === session.id ? prefs.lastAward.message : null,
   );
+  // Celebrations queue: an earned reward first, then a new level.
+  const [queue, setQueue] = useState<Celebration[]>([]);
+  useEffect(() => {
+    if (session.kind !== 'focus') return;
+    const total = focusTotals(db).seconds;
+    const reached = levelUp(total - active, total);
+    if (reached && reached > prefs.celebratedLevel) {
+      const info = levelFor(total);
+      setPrefs({ celebratedLevel: reached });
+      setQueue((q) => [
+        ...q,
+        {
+          kind: 'level',
+          level: reached,
+          title: `Level ${reached} · ${levelName(reached)}`,
+          body: info.nextLevel
+            ? `${formatMinutes(total)} locked in so far. ${formatMinutes(info.remainingSeconds)} more for level ${info.nextLevel}.`
+            : `${formatMinutes(total)} locked in. That’s the top level.`,
+          action: 'See your level',
+        },
+      ]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id]);
+  const shown = queue[0] ?? null;
+  const nextCelebration = () => setQueue((q) => q.slice(1));
 
   // An accepted reward offer: send this lock-in's numbers once. The server decides.
   useEffect(() => {
@@ -388,6 +413,25 @@ function Completion({ session, onReset }: { session: FocusSession; onReset: () =
     setReward('Checking your reward…');
     submitLockIn(session, r).then((out) => {
       setReward(out.message);
+      const d = out.decision;
+      if (d?.outcome === 'awarded') {
+        const tag =
+          out.network === 'devnet' ? 'DEVNET TEST USDC · NOT REAL MONEY' : out.network === 'mainnet' ? 'USDC' : 'SIMULATED · NOT REAL MONEY';
+        setQueue((q) => [
+          {
+            kind: 'reward',
+            amount: (Number(d.amount) / 1_000_000).toFixed(2),
+            tag,
+            title: 'Reward earned',
+            body:
+              d.state === 'available'
+                ? `For “${r.title}”. It’s in your balance, ready to pay out.`
+                : `For “${r.title}”. It’s in your balance and unlocks after a short review.`,
+            action: 'See it in Rewards',
+          },
+          ...q,
+        ]);
+      }
       setPrefs({
         lastAward: { sessionId: session.id, outcome: out.decision?.outcome ?? 'error', message: out.message },
         ...(out.clearReservation ? { activeReservation: null } : {}),
@@ -445,6 +489,20 @@ function Completion({ session, onReset }: { session: FocusSession; onReset: () =
 
   return (
     <View style={[styles.fill, { paddingTop: insets.top }]}>
+      <CelebrationSheet
+        item={shown}
+        onClose={nextCelebration}
+        onAction={() => {
+          if (!shown) return;
+          saveNote();
+          setQueue([]);
+          if (shown.kind === 'level') router.replace('/level');
+          else {
+            router.back();
+            router.navigate('/rewards');
+          }
+        }}
+      />
       <TopBar onClose={finish} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: SIDE, gap: space.xl, paddingBottom: space.xl }} keyboardShouldPersistTaps="handled">
         <Animated.View entering={reduceMotion ? undefined : ZoomIn.springify().damping(18)} style={styles.reveal}>

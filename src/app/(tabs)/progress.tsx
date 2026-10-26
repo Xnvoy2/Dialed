@@ -1,5 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
+import { levelFor } from '../../domain/level';
+import { LevelChip } from '../../ui/Level';
 import { StyleSheet, View } from 'react-native';
 import {
   DayKey,
@@ -29,6 +31,7 @@ const RECAP_WEEKS = 4;
 
 export default function ProgressScreen() {
   const { today, prefs } = useApp();
+  const levelTotals = useQuery((d) => focusTotals(d));
   const weekStart = startOfWeek(today, prefs.weekStart);
   const days = weekDays(weekStart);
   const oldest = addDays(weekStart, -7 * (RECAP_WEEKS - 1));
@@ -65,7 +68,7 @@ export default function ProgressScreen() {
   const recaps = Array.from({ length: RECAP_WEEKS }, (_, i) => addDays(weekStart, -7 * i)).filter((ws) => ws >= firstWeek);
 
   return (
-    <Screen backdrop="progress" title="Progress" subtitle="From what you’ve recorded on this phone">
+    <Screen headerRight={<LevelChip level={levelFor(levelTotals.seconds).level} onPress={() => router.push('/level')} />} title="Progress" subtitle="From what you’ve recorded on this phone">
       <View style={{ gap: TILE_GAP }}>
         <Card style={{ padding: space.xl, gap: 2 }}>
           <T v="subhead" color={colors.secondary}>

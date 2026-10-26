@@ -9,9 +9,8 @@ import { activeMs } from '../domain/focus';
 import { getOpenSession } from '../repos/sessions';
 import { useApp, useNow, useQuery } from '../state/AppProvider';
 import { IconName, Ring } from './components';
-import { Glass } from './Glass';
 import { useHaptics } from './haptics';
-import { colors } from './theme';
+import { colors, font } from './theme';
 
 const ICONS: Record<string, [IconName, IconName]> = {
   index: ['sunny-outline', 'sunny'],
@@ -22,10 +21,11 @@ const ICONS: Record<string, [IconName, IconName]> = {
 const LABELS: Record<string, string> = { index: 'Today', habits: 'Habits', progress: 'Progress', rewards: 'Rewards' };
 const SPRING = { damping: 22, stiffness: 260, mass: 0.9 };
 const H = 64;
+const SOLID = '#18181A';
 
 /**
- * Floating glass pill with a separate round Focus button, after the reference.
- * Always visible; it does not hide on scroll.
+ * Solid floating pill with a separate round Lock-in button. Opaque so page
+ * text never shows through it. Always visible; it does not hide on scroll.
  */
 export function Dock({ state, navigateToTab }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -50,7 +50,6 @@ export function Dock({ state, navigateToTab }: BottomTabBarProps) {
           style={styles.pill}
           onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width - 8)}
         >
-          <Glass radius={H / 2} tint="rgba(20,20,22,0.35)" style={StyleSheet.absoluteFill} />
           {width > 0 ? <Animated.View style={[styles.indicator, { width: itemW }, indicator]} /> : null}
           {state.routes.map((route, i) => {
             const focused = state.index === i;
@@ -102,7 +101,6 @@ function FocusButton({ onPress }: { onPress: () => void }) {
       onPress={onPress}
       style={({ pressed }) => [styles.focus, pressed && { transform: [{ scale: 0.94 }] }]}
     >
-      <Glass radius={H / 2} tint="rgba(20,20,22,0.35)" style={StyleSheet.absoluteFill} interactive />
       {open ? (
         <Ring size={H - 8} stroke={3} progress={progress} animate={false}>
           <Ionicons name={open.status === 'paused' ? 'pause' : 'hourglass'} size={22} color={colors.text} />
@@ -122,6 +120,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 4,
     overflow: 'hidden',
+    backgroundColor: SOLID,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
   },
   indicator: {
     position: 'absolute',
@@ -129,10 +130,10 @@ const styles = StyleSheet.create({
     left: 4,
     bottom: 4,
     borderRadius: (H - 8) / 2,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: colors.surfaceRaised,
   },
   item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  label: { fontSize: 12, fontWeight: '600' },
+  label: { fontSize: 12, fontFamily: font('600') },
   focus: {
     width: H,
     height: H,
@@ -140,5 +141,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: SOLID,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
   },
 });

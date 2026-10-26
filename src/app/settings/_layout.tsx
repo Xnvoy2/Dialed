@@ -1,7 +1,7 @@
 import { Stack, router } from 'expo-router';
 import { Pressable, Text } from 'react-native';
 import React from 'react';
-import { colors } from '../../ui/theme';
+import { colors, font } from '../../ui/theme';
 
 export default function SettingsLayout() {
   return (
@@ -20,7 +20,7 @@ export default function SettingsLayout() {
           title: 'Settings',
           headerLeft: () => (
             <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Done">
-              <Text style={{ color: colors.text, fontSize: 17, fontWeight: '600' }}>Done</Text>
+              <Text style={{ color: colors.text, fontSize: 17, fontFamily: font('600') }}>Done</Text>
             </Pressable>
           ),
         }}
