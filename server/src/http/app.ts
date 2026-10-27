@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import type { JWTVerifyGetKey } from 'jose';
@@ -26,6 +27,13 @@ export interface AppDeps {
   appleKeys?: JWTVerifyGetKey;
   /** Tests inject their own App Attest root certificate. */
   attestRootPem?: string;
+  /** Runs one round of background jobs (expiry, review window, payouts). */
+  tick?: () => Promise<unknown>;
+  /**
+   * Called when money just moved (session awarded, payout requested), so a
+   * serverless host can settle it in the background instead of waiting for cron.
+   */
+  onMoneyEvent?: () => void;
 }
 
 declare module 'fastify' {
@@ -37,7 +45,7 @@ declare module 'fastify' {
 const TERMS_VERSION = '2026-10-26';
 const amountString = z.string().regex(/^\d{1,15}$/).transform((s) => BigInt(s));
 
-export async function buildApp({ db, cfg, appleKeys, attestRootPem }: AppDeps): Promise<FastifyInstance> {
+export async function buildApp({ db, cfg, appleKeys, attestRootPem, tick, onMoneyEvent }: AppDeps): Promise<FastifyInstance> {
   const hosted = cfg.env === 'staging' || cfg.env === 'production';
   const app = Fastify({
     logger: cfg.env === 'development' ? { level: 'info' } : hosted ? { level: 'warn' } : false,
@@ -89,6 +97,18 @@ export async function buildApp({ db, cfg, appleKeys, attestRootPem }: AppDeps): 
   };
 
   app.get('/v1/health', async () => ({ ok: true, network: cfg.network, env: cfg.env, attest: cfg.requireAttest }));
+
+  // -------------------------------------------------------------- jobs
+  // Vercel Cron calls this with `Authorization: Bearer $CRON_SECRET`.
+  const cronSecret = process.env.CRON_SECRET;
+  if (tick && cronSecret && cronSecret.length >= 16) {
+    app.get('/v1/cron/tick', async (req, reply) => {
+      const a = Buffer.from(String(req.headers.authorization ?? ''));
+      const b = Buffer.from(`Bearer ${cronSecret}`);
+      if (a.length !== b.length || !timingSafeEqual(a, b)) return reply.status(401).send({ error: 'unauthorized', message: 'Unauthorized.' });
+      return { ok: true, result: await tick() };
+    });
+  }
 
   // -------------------------------------------------------------- App Attest
   app.post('/v1/attest/challenge', async (req) => newChallenge(db, await user(req)));
@@ -196,7 +216,11 @@ export async function buildApp({ db, cfg, appleKeys, attestRootPem }: AppDeps): 
     return releaseReservation(db, id, resId);
   });
 
-  app.post('/v1/sessions', async (req) => submitSession(db, cfg, await deviceUser(req), req.body));
+  app.post('/v1/sessions', async (req) => {
+    const r = await submitSession(db, cfg, await deviceUser(req), req.body);
+    onMoneyEvent?.();
+    return r;
+  });
 
   app.get('/v1/balances', async (req) => ({ ...(await balancesDto(db, await user(req))), network: cfg.network }));
 
@@ -205,7 +229,9 @@ export async function buildApp({ db, cfg, appleKeys, attestRootPem }: AppDeps): 
   app.post('/v1/payouts', async (req) => {
     const id = await deviceUser(req);
     const { amount } = z.object({ amount: amountString }).parse(req.body);
-    return requestPayout(db, cfg, id, amount, idem(req));
+    const r = await requestPayout(db, cfg, id, amount, idem(req));
+    onMoneyEvent?.();
+    return r;
   });
 
   /** "Where your rewards came from": funding by source and what's been paid. */

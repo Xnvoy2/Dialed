@@ -15,19 +15,24 @@ the server refuses to boot and names the missing piece.
 | RPC genesis check | must be mainnet | no |
 | Kill switch | `npm run dialed -- payouts pause` | n/a |
 
-## 1. Host the server (Railway)
+## 1. Host the server (Vercel)
 
-1. Sign up at railway.com, then **New project → Deploy from GitHub repo** → `Xnvoy2/Dialed`.
-   Set the service's **root directory** to `lockin/server`. It builds the `Dockerfile`.
-2. **New → Database → PostgreSQL** in the same project.
-3. On the API service, **Settings → Networking → Generate domain**. That HTTPS URL is your API.
-4. **Variables** on the API service:
+The server runs as a Fastify function on Vercel (entry: `src/index.ts`).
+Background jobs run two ways: Vercel Cron calls `/v1/cron/tick`, and every
+session award or payout request settles itself right away in the background
+(`waitUntil`), so payouts don't wait for the cron.
+
+1. **vercel.com → Add New → Project → Import** `Xnvoy2/Dialed`.
+   Set **Root Directory** to `lockin/server`. Framework is detected as Fastify.
+2. **Storage → Marketplace → Neon (Postgres)** → connect it to this project.
+   It adds `DATABASE_URL` for you. Tables are created on first request.
+3. **Settings → Environment Variables** (Production), mark secrets *Sensitive*:
 
 ```
 DIALED_ENV=production
 DIALED_PAYOUT_NETWORK=devnet            # devnet first; mainnet in step 4
-DATABASE_URL=${{Postgres.DATABASE_URL}}
 DIALED_SESSION_SECRET=<openssl rand -hex 32>
+CRON_SECRET=<openssl rand -hex 32>
 APPLE_BUNDLE_ID=com.joshbarton.dialed
 APPLE_TEAM_ID=PPNNNASZJX
 SOLANA_RPC_URL=https://api.devnet.solana.com
@@ -35,7 +40,23 @@ DIALED_SIGNER_KEY=<contents of the devnet key file, see step 2>
 DIALED_REQUIRE_ATTEST=1
 ```
 
-Keep it at **one replica**: payout jobs run inside the server.
+4. Deploy. Your API is `https://<project>.vercel.app` (check `/v1/health`).
+
+**Cron on Hobby vs Pro.** `vercel.json` runs the tick once a day (09:00 UTC),
+which Hobby allows. That's enough because payouts settle themselves, and the
+daily tick only matures rewards after review and expires old reservations.
+On Pro you can change the schedule to `*/5 * * * *` for quicker maturing.
+
+**Operator commands** run from your Mac against the Neon database:
+
+```bash
+cd lockin/server
+DATABASE_URL="<Neon connection string>" DIALED_ENV=production … npm run dialed -- status
+```
+
+Easiest: `vercel env pull .env.production` (CLI), then
+`set -a; source .env.production; set +a; npm run dialed -- status`.
+Delete that file afterwards; it holds your secrets.
 
 ## 2. Treasury keys
 
@@ -48,23 +69,24 @@ npm run dialed -- keygen ~/.config/dialed/treasury-mainnet.json
 ```
 
 Paste the file's contents (a `[12,34,…]` array) into the `DIALED_SIGNER_KEY`
-variable yourself. Treat the mainnet key as a **hot wallet**: only keep in it
-what you're prepared to lose. Top it up in small amounts.
+variable yourself, marked Sensitive. Treat the mainnet key as a **hot
+wallet**: only keep in it what you're prepared to lose. Top it up in small
+amounts.
 
 ## 3. Rehearse on devnet (hosted)
 
 1. Fund the devnet treasury address with devnet SOL and Circle devnet USDC (see README).
-2. Open a shell on the service (`railway ssh`) and run:
+2. With the production env loaded (step 1), run:
    ```bash
-   node --import tsx src/cli/dialed.ts deposit 10 --ref <faucet tx> --source "Circle devnet faucet"
-   node --import tsx src/cli/dialed.ts rule --version focus-25-v1 --title "Complete a 25-minute lock-in" --minutes 25 --amount 0.10 --daily 2 --weekly 8
-   node --import tsx src/cli/dialed.ts offer open --rule focus-25-v1 --budget 5
-   node --import tsx src/cli/dialed.ts status
+   npm run dialed -- deposit 10 --ref <faucet tx> --source "Circle devnet faucet"
+   npm run dialed -- rule --version focus-25-v1 --title "Complete a 25-minute lock-in" --minutes 25 --amount 0.10 --daily 2 --weekly 8
+   npm run dialed -- offer open --rule focus-25-v1 --budget 5
+   npm run dialed -- status
    ```
 3. Build the app against it and install on your iPhone:
    ```bash
    cd lockin
-   DIALED_API_URL=https://<your-domain> xcodebuild … (same command as before)
+   DIALED_API_URL=https://<project>.vercel.app xcodebuild … (same command as before)
    ```
 4. On the phone, go through Rewards: Sign in with Apple, accept, lock in 25 min,
    wait out the 24 h review, then pay out to your own wallet. Check the
@@ -83,13 +105,13 @@ DIALED_ATTEST_ENV=production            # App Store/TestFlight builds only
 ```
 
 Use a **fresh database**: devnet balances must not become mainnet IOUs.
-(New Railway Postgres, or drop and recreate.)
+(Create a new Neon branch or database and point `DATABASE_URL` at it.)
 
 Then send real USDC + ~0.05 SOL (fees and token-account rent) to the mainnet
 treasury address yourself, and record it:
 
 ```bash
-node --import tsx src/cli/dialed.ts deposit 25 --ref <your transfer signature> --source "Founders"
+npm run dialed -- deposit 25 --ref <your transfer signature> --source "Founders"
 ```
 
 `deposit` refuses unless the on-chain balance already covers it.
@@ -100,10 +122,10 @@ While testing a build installed from Xcode, use `either`.
 ## Day to day
 
 ```bash
-node --import tsx src/cli/dialed.ts status            # funding, caps, payouts state, on-chain balance
-node --import tsx src/cli/dialed.ts payouts pause     # stop money going out right now
-node --import tsx src/cli/dialed.ts payouts resume
-node --import tsx src/cli/dialed.ts offer pause <id>  # stop new acceptances on one offer
+npm run dialed -- status            # funding, caps, payouts state, on-chain balance
+npm run dialed -- payouts pause     # stop money going out right now
+npm run dialed -- payouts resume
+npm run dialed -- offer pause <id>  # stop new acceptances on one offer
 ```
 
 Watch `status` daily at first. Pause if `owed` grows faster than people could

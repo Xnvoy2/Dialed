@@ -7,8 +7,8 @@ export type Db = pg.Pool;
 export type Tx = pg.PoolClient;
 export type Queryable = pg.Pool | pg.PoolClient;
 
-export function createPool(connectionString: string): Db {
-  return new pg.Pool({ connectionString, max: 10 });
+export function createPool(connectionString: string, max = 10): Db {
+  return new pg.Pool({ connectionString, max, idleTimeoutMillis: 10_000 });
 }
 
 /** Runs fn in a transaction; rolls back on any error. */
