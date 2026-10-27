@@ -1,3 +1,4 @@
+import * as AppleAuthentication from 'expo-apple-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { APP_VERSION } from '../config/app';
 import { API_URL, ApiError, api, httpRewardsApi, newIdempotencyKey } from '../api/client';
@@ -12,6 +13,25 @@ export const serverConfigured = () => API_URL !== null;
 export async function connectWithApple(identityToken: string | null, name: string | null) {
   if (!API_URL || !identityToken) return null;
   return api.signInWithApple(identityToken, name);
+}
+
+/**
+ * Sign in with Apple and link to the rewards server in one step, from the
+ * Rewards tab. Returns null if the person cancels; throws with a readable
+ * message if Apple or the server fails.
+ */
+export async function signInAndConnect(): Promise<{ serverUserId: string; appleUserId: string; name: string | null } | null> {
+  let c: AppleAuthentication.AppleAuthenticationCredential;
+  try {
+    c = await AppleAuthentication.signInAsync({ requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME] });
+  } catch (e) {
+    if ((e as { code?: string })?.code === 'ERR_REQUEST_CANCELED') return null;
+    throw new Error('Check you’re signed in to your Apple Account in iOS Settings, then try again.');
+  }
+  const name = c.fullName ? AppleAuthentication.formatFullName(c.fullName, 'short') || null : null;
+  const u = await connectWithApple(c.identityToken, name);
+  if (!u) throw new Error('Apple didn’t return a sign-in token. Try again.');
+  return { serverUserId: u.id, appleUserId: c.user, name };
 }
 
 /** Development servers only. The simulator has no Apple Account. */

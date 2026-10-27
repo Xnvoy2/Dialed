@@ -7,7 +7,7 @@ import { formatClock } from '../../domain/dates';
 import { formatUsdc, usdc } from '../../domain/rewards';
 import { ActivityDTO, BalancesDTO, OfferDTO, ProgramInfo, TransparencyDTO, networkLabel } from '../../domain/rewardsApi';
 import { useApp } from '../../state/AppProvider';
-import { acceptOffer, connectDev } from '../../state/rewards';
+import { acceptOffer, connectDev, signInAndConnect } from '../../state/rewards';
 import { Button, Card, IconBubble, Row, SectionHeader, SmallButton, T, Tiles } from '../../ui/components';
 import { Screen } from '../../ui/Screen';
 import { SIDE, TILE_GAP, colors, radius, space } from '../../ui/theme';
@@ -128,6 +128,18 @@ export default function RewardsScreen() {
     }
   };
 
+  const appleConnect = async () => {
+    setBusy('apple');
+    try {
+      const r = await signInAndConnect();
+      if (r) setPrefs({ serverUserId: r.serverUserId, appleUserId: r.appleUserId, ...(r.name && !prefs.displayName ? { displayName: r.name } : {}) });
+    } catch (e) {
+      Alert.alert('Couldn’t join rewards', (e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const net = data?.program.network ?? 'simulated';
   const b = data?.balances;
   const status = data?.program.status;
@@ -164,7 +176,7 @@ export default function RewardsScreen() {
               Rewards need your Dialed account. Everything else works without it.
             </T>
             {__DEV__ ? <Button title="Connect (development)" onPress={connect} loading={busy === 'connect'} /> : null}
-            <Button title="Sign in with Apple" kind={__DEV__ ? 'secondary' : 'primary'} onPress={() => router.push({ pathname: '/onboarding', params: { redo: '1' } })} />
+            <Button title="Sign in with Apple" kind={__DEV__ ? 'secondary' : 'primary'} onPress={appleConnect} loading={busy === 'apple'} />
           </Card>
         ) : null}
 
