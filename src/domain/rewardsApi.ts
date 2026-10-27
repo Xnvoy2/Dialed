@@ -4,13 +4,18 @@
  * or notes are ever part of a request.
  */
 export type BaseUnitsString = string;
-export type PayoutNetwork = 'simulated' | 'devnet';
+export type PayoutNetwork = 'simulated' | 'devnet' | 'mainnet';
 export type ProgramStatus = 'not_live' | 'live' | 'paused_no_funds';
 
 export interface ProgramInfo {
   status: ProgramStatus;
   network: PayoutNetwork;
   termsVersion: string | null;
+  attestRequired?: boolean;
+  /** Base units. Older servers don't send these. */
+  minPayout?: BaseUnitsString;
+  maxPayout?: BaseUnitsString;
+  payoutsPaused?: boolean;
 }
 
 export interface OfferDTO {
@@ -116,5 +121,6 @@ export const notLiveRewardsApi: RewardsApi = {
 
 /** The label every server balance carries. There is no real-money network in this build. */
 export function networkLabel(n: PayoutNetwork): string {
+  if (n === 'mainnet') return 'Real USDC on Solana';
   return n === 'devnet' ? 'Devnet test USDC · not real money' : 'Simulated · not real money';
 }

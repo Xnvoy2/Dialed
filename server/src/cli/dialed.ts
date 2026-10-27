@@ -16,6 +16,7 @@ import { payoutDeps, tick } from '../runtime.js';
  *   npm run dialed -- offer open --rule focus-25-v1 --budget 50
  *   npm run dialed -- offer pause|open-again|close <offer id>
  *   npm run dialed -- tick
+ *   npm run dialed -- payouts pause|resume       (kill switch: stops money going out)
  *   npm run dialed -- keygen ~/.config/dialed/treasury-devnet.json
  */
 const args = process.argv.slice(2);
@@ -40,7 +41,9 @@ async function main() {
       const t = await treasuryTotals(db);
       const offers = await db.query<{ id: string; rule_version: string; status: string; budget_remaining: bigint; budget_total: bigint }>(
         'SELECT id, rule_version, status, budget_remaining, budget_total FROM offers ORDER BY created_at');
-      console.log(`network      ${cfg.network}`);
+      const tr = await db.query<{ paused: boolean; payouts_paused: boolean }>('SELECT paused, payouts_paused FROM treasury WHERE id = 1');
+      console.log(`network      ${cfg.network}${cfg.network === 'mainnet' ? '  ← REAL USDC' : ''}`);
+      console.log(`payouts      ${tr.rows[0]?.payouts_paused ? 'PAUSED' : 'running'} · max ${formatUsdc(cfg.maxPayoutBaseUnits)} each · min ${formatUsdc(cfg.minPayoutBaseUnits)} · ${formatUsdc(cfg.dailyPayoutCapBaseUnits)}/24h · review ${cfg.reviewHours}h · attest ${cfg.requireAttest ? 'required' : 'optional'}`);
       console.log(`program      ${await programStatus(db)}`);
       console.log(`deposited    ${formatUsdc(t.deposited)} USDC`);
       console.log(`unallocated  ${formatUsdc(t.unallocated)}`);
@@ -48,7 +51,7 @@ async function main() {
       console.log(`owed         ${formatUsdc(t.owed)}  (pending ${formatUsdc(t.pending)}, available ${formatUsdc(t.available)}, in flight ${formatUsdc(t.inflight)})`);
       console.log(`paid         ${formatUsdc(t.paid)}`);
       console.log(`must hold    ${formatUsdc(t.mustHold)}`);
-      if (cfg.network === 'devnet') {
+      if (cfg.network !== 'simulated') {
         const { chain, signer } = await payoutDeps(cfg);
         const held = await chain!.getTokenAccountBalance(signer!.sourceTokenAccount);
         const sol = await chain!.getSolBalance(signer!.address);
@@ -65,7 +68,7 @@ async function main() {
       const amount = parseUsdc(args[1] ?? '');
       const reference = need('ref');
       const source = flag('source') ?? 'Operator';
-      if (cfg.network === 'devnet') {
+      if (cfg.network !== 'simulated') {
         const { chain, signer } = await payoutDeps(cfg);
         const held = (await chain!.getTokenAccountBalance(signer!.sourceTokenAccount)) ?? 0n;
         const t = await treasuryTotals(db);
@@ -103,6 +106,13 @@ async function main() {
       } else throw new Error('offer open|pause|open-again|close');
       break;
     }
+    case 'payouts': {
+      const sub = args[1];
+      if (sub !== 'pause' && sub !== 'resume') throw new Error('payouts pause|resume');
+      await db.query('UPDATE treasury SET payouts_paused = $1 WHERE id = 1', [sub === 'pause']);
+      console.log(sub === 'pause' ? 'payouts PAUSED: nothing new will be sent. Balances are kept.' : 'payouts resumed');
+      break;
+    }
     case 'tick': {
       console.log(await tick(db, cfg, await payoutDeps(cfg)));
       break;
@@ -114,12 +124,12 @@ async function main() {
       const signer = await generateKeyPairSigner(true);
       const { exportKeyPairBytes } = await import('./keybytes.js');
       writeFileSync(path, JSON.stringify(Array.from(await exportKeyPairBytes(signer.keyPair))), { mode: 0o600 });
-      console.log(`devnet treasury address: ${signer.address}`);
+      console.log(`treasury address: ${signer.address}`);
       console.log(`key written to ${path} (mode 600). Set DIALED_SIGNER_KEYPAIR=${path}`);
       break;
     }
     default:
-      console.log('commands: status | deposit | rule | offer | tick | keygen');
+      console.log('commands: status | deposit | rule | offer | payouts | tick | keygen');
   }
 }
 

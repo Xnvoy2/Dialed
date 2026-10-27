@@ -103,10 +103,23 @@ export default function RewardsScreen() {
   };
 
   const payout = async () => {
-    if (!data) return;
+    if (!data || !payAmount) return;
+    if (data.program.network === 'mainnet') {
+      const ok = await new Promise<boolean>((done) =>
+        Alert.alert(
+          `Send ${fmt(payAmount)} USDC?`,
+          `To ${data.payoutAddress}\n\nThis is real USDC on Solana. Payouts can’t be reversed, so check the address is yours.`,
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => done(false) },
+            { text: 'Send', onPress: () => done(true) },
+          ],
+        ),
+      );
+      if (!ok) return;
+    }
     setBusy('payout');
     try {
-      await httpRewardsApi.requestPayout(data.balances.available, newIdempotencyKey());
+      await httpRewardsApi.requestPayout(payAmount, newIdempotencyKey());
       await load();
     } catch (e) {
       Alert.alert('Payout not started', (e as Error).message);
@@ -142,6 +155,12 @@ export default function RewardsScreen() {
 
   const net = data?.program.network ?? 'simulated';
   const b = data?.balances;
+  // One payout carries at most maxPayout; anything left can go in the next one.
+  const avail = BigInt(b?.available ?? '0');
+  const max = data?.program.maxPayout ? BigInt(data.program.maxPayout) : avail;
+  const min = data?.program.minPayout ? BigInt(data.program.minPayout) : 1n;
+  const payBig = avail < max ? avail : max;
+  const payAmount = payBig >= min && payBig > 0n ? payBig.toString() : null;
   const status = data?.program.status;
 
   return (
@@ -278,7 +297,13 @@ export default function RewardsScreen() {
           <SectionHeader title="Pay out" />
           <Card style={{ gap: space.m }}>
             <T v="subhead" color={colors.secondary}>
-              Your Solana address. Dialed pays the network fee. {net === 'devnet' ? 'Devnet test USDC only.' : 'Simulated: nothing is sent.'}
+              Your Solana address. Dialed pays the network fee.{' '}
+              {net === 'mainnet'
+                ? `Real USDC. Payouts can’t be reversed.${data.program.minPayout ? ` Minimum ${fmt(data.program.minPayout)} USDC.` : ''}`
+                : net === 'devnet'
+                  ? 'Devnet test USDC only.'
+                  : 'Simulated: nothing is sent.'}
+              {data.program.payoutsPaused ? ' Payouts are paused for now; your balance is safe.' : ''}
             </T>
             <TextInput
               value={address}
@@ -295,8 +320,14 @@ export default function RewardsScreen() {
               <Button title="Save address" kind="secondary" onPress={saveAddress} loading={busy === 'address'} />
             ) : null}
             <Button
-              title={b && b.available !== '0' ? `Pay out ${fmt(b.available)} USDC` : 'Nothing to pay out yet'}
-              disabled={!b || b.available === '0' || !data.payoutAddress}
+              title={
+                payAmount
+                  ? `Pay out ${fmt(payAmount)} USDC`
+                  : avail > 0n
+                    ? `${fmt(min.toString())} USDC minimum to pay out`
+                    : 'Nothing to pay out yet'
+              }
+              disabled={!payAmount || !data.payoutAddress || !!data.program.payoutsPaused}
               onPress={payout}
               loading={busy === 'payout'}
             />

@@ -3,6 +3,7 @@ import type { Config } from '../config.js';
 import { withTx, type Db } from '../db/pool.js';
 import { RpcUncertain, type ChainClient } from '../solana/chain.js';
 import type { TreasurySigner } from '../solana/signer.js';
+import { formatUsdc as fmt } from '../config.js';
 import { A, balance, transfer } from './ledger.js';
 import { ApiError } from './rewards.js';
 
@@ -14,13 +15,23 @@ export function validAddress(a: string): boolean {
 export async function requestPayout(db: Db, cfg: Config, userId: string, amount: bigint, idempotencyKey: string) {
   if (!/^[A-Za-z0-9_-]{8,80}$/.test(idempotencyKey)) throw new ApiError(400, 'bad_idempotency_key', 'Idempotency-Key is required.');
   if (amount <= 0n) throw new ApiError(400, 'bad_amount', 'Amount must be positive.');
-  if (amount > cfg.maxPayoutBaseUnits) throw new ApiError(400, 'over_limit', 'That is more than one payout can carry.');
+  if (amount > cfg.maxPayoutBaseUnits) throw new ApiError(400, 'over_limit', `One payout can carry at most ${fmt(cfg.maxPayoutBaseUnits)} USDC.`);
+  if (amount < cfg.minPayoutBaseUnits) throw new ApiError(400, 'under_minimum', `The smallest payout is ${fmt(cfg.minPayoutBaseUnits)} USDC.`);
   return withTx(db, async (tx) => {
+    // Serialise payout requests so the daily cap can't be raced past.
+    const t = await tx.query<{ payouts_paused: boolean }>('SELECT payouts_paused FROM treasury WHERE id = 1 FOR UPDATE');
     const prior = await tx.query<{ id: string; status: string; amount: bigint }>(
       'SELECT id, status, amount FROM payouts WHERE user_id = $1 AND idempotency_key = $2',
       [userId, idempotencyKey],
     );
     if (prior.rows[0]) return { id: prior.rows[0].id, status: prior.rows[0].status, amount: prior.rows[0].amount.toString() };
+    if (t.rows[0]?.payouts_paused) throw new ApiError(503, 'payouts_paused', 'Payouts are paused for now. Your balance is safe.');
+    const day = await tx.query<{ total: bigint }>(
+      `SELECT COALESCE(SUM(amount), 0)::int8 AS total FROM payouts
+       WHERE status <> 'failed' AND created_at > now() - interval '24 hours'`);
+    if (BigInt(day.rows[0]!.total) + amount > cfg.dailyPayoutCapBaseUnits) {
+      throw new ApiError(429, 'daily_cap', 'Today’s payouts are at their limit. Try again tomorrow; your balance is safe.');
+    }
     const u = await tx.query<{ payout_address: string | null }>('SELECT payout_address FROM users WHERE id = $1 FOR UPDATE', [userId]);
     const dest = u.rows[0]?.payout_address;
     if (!dest) throw new ApiError(409, 'no_address', 'Add a Solana address to receive payouts.');
@@ -76,15 +87,22 @@ export async function processPayouts(db: Db, cfg: Config, deps: PayoutDeps = {})
   }>(`SELECT id, amount, destination, status, network, signature, last_valid_block_height, attempts
       FROM payouts WHERE status IN ('requested','submitted') ORDER BY created_at LIMIT 50`);
   const summary = { confirmed: 0, failed: 0, submitted: 0, waiting: 0 };
+  const paused = (await db.query<{ payouts_paused: boolean }>('SELECT payouts_paused FROM treasury WHERE id = 1')).rows[0]?.payouts_paused;
 
   for (const p of open.rows) {
+    // Paused: don't send anything new. Already-submitted transactions are still
+    // checked below so their outcome is recorded.
+    if (paused && p.status === 'requested') {
+      summary.waiting++;
+      continue;
+    }
     if (p.network === 'simulated') {
       await settle(db, p.id, true, { signature: `SIMULATED-${p.id}` });
       summary.confirmed++;
       continue;
     }
     const { chain, signer } = deps;
-    if (!chain || !signer) {
+    if (!chain || !signer || p.network !== cfg.network) {
       summary.waiting++;
       continue;
     }

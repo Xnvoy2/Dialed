@@ -2,7 +2,7 @@
   "name": "dialed-server",
   "private": true,
   "version": "0.1.0",
-  "description": "Dialed backend: Sign in with Apple, rewards ledger and payouts. Simulated or Solana devnet only.",
+  "description": "Dialed backend: Sign in with Apple, rewards ledger and payouts. Simulated, Solana devnet, or guarded mainnet.",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -27,8 +27,10 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@peculiar/x509": "^2.2.0",
     "@types/node": "^26.6.5",
     "@types/pg": "^8.23.1",
+    "reflect-metadata": "^0.2.2",
     "typescript": "^7.0.2"
   }
 }

@@ -13,13 +13,13 @@ after(async () => {
 });
 
 describe('config', () => {
-  test('mainnet is refused', () => {
+  test('mainnet is refused outside a confirmed production setup', () => {
     assert.throws(() => loadConfig({ DIALED_ENV: 'test', DIALED_PAYOUT_NETWORK: 'mainnet' }), ConfigError);
     assert.throws(() => loadConfig({ DIALED_ENV: 'test', DIALED_PAYOUT_NETWORK: 'devnet', SOLANA_RPC_URL: 'https://api.mainnet-beta.solana.com' }), ConfigError);
   });
   test('staging needs a real secret and never allows dev sign-in', () => {
     assert.throws(() => loadConfig({ DIALED_ENV: 'staging' }), ConfigError);
-    const c = loadConfig({ DIALED_ENV: 'staging', DIALED_SESSION_SECRET: 'x'.repeat(40), DIALED_DEV_AUTH: '1' });
+    const c = loadConfig({ DIALED_ENV: 'staging', DIALED_SESSION_SECRET: 'x'.repeat(40), DIALED_DEV_AUTH: '1', DATABASE_URL: 'postgres://db/x' });
     assert.equal(c.allowDevAuth, false);
   });
   test('USDC parsing is exact', () => {

@@ -1,7 +1,7 @@
 # Dialed server
 
 Sign in with Apple, the rewards ledger, and payouts. **Simulated or Solana
-devnet only. Mainnet is refused by config.** Node 22+, PostgreSQL 15+.
+devnet by default. Real USDC (mainnet) only with every safeguard in [DEPLOY.md](DEPLOY.md).** Node 22+, PostgreSQL 15+.
 
 ## Run it locally
 

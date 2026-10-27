@@ -33,11 +33,11 @@ export async function fakeApple() {
   return { keys, token };
 }
 
-export async function setup(over: Record<string, string> = {}) {
+export async function setup(over: Record<string, string> = {}, extra: { attestRootPem?: string } = {}) {
   const db = await freshDb();
   const cfg = testConfig(over);
   const apple = await fakeApple();
-  const app = await buildApp({ db, cfg, appleKeys: apple.keys });
+  const app = await buildApp({ db, cfg, appleKeys: apple.keys, attestRootPem: extra.attestRootPem });
   const signIn = async (sub: string) => {
     const r = await app.inject({ method: 'POST', url: '/v1/auth/apple', payload: { identityToken: await apple.token(sub) } });
     if (r.statusCode !== 200) throw new Error(r.body);
