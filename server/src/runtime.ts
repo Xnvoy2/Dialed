@@ -33,16 +33,16 @@ const TICK_LOCK = '7310402024';
  * hosts start many copies of the server; only one should move money at a time.
  */
 export async function tickOnce(db: Db, cfg: Config, deps: PayoutDeps) {
+  // The lock lives in an open transaction on its own connection, so it is
+  // released on COMMIT, on error, or if the connection dies: safe behind a pooler.
   const c = await db.connect();
   try {
-    const got = (await c.query<{ ok: boolean }>('SELECT pg_try_advisory_lock($1) AS ok', [TICK_LOCK])).rows[0]?.ok;
+    await c.query('BEGIN');
+    const got = (await c.query<{ ok: boolean }>('SELECT pg_try_advisory_xact_lock($1) AS ok', [TICK_LOCK])).rows[0]?.ok;
     if (!got) return null;
-    try {
-      return await tick(db, cfg, deps);
-    } finally {
-      await c.query('SELECT pg_advisory_unlock($1)', [TICK_LOCK]).catch(() => {});
-    }
+    return await tick(db, cfg, deps);
   } finally {
+    await c.query('COMMIT').catch(() => {});
     c.release();
   }
 }

@@ -74,6 +74,11 @@ function loadDotEnv(): void {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (env === process.env) loadDotEnv();
+  // Vercel previews share the production database (Neon connects to every
+  // environment), so a hosted deploy must say which environment it is.
+  if (env.VERCEL && !env.DIALED_ENV) {
+    throw new ConfigError(`Set DIALED_ENV for this Vercel ${env.VERCEL_ENV ?? ''} deployment (previews are off by default).`);
+  }
   const e = (env.DIALED_ENV ?? 'development') as DialedEnv;
   if (!['development', 'test', 'staging', 'production'].includes(e)) {
     throw new ConfigError(`DIALED_ENV must be development, test, staging or production (got ${e}).`);
