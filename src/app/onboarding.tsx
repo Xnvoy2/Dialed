@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -30,7 +31,7 @@ import { selectionCount } from '../native/blocking/types';
 import { applyPlan } from '../repos/arc';
 import { connectDev, connectWithApple } from '../state/rewards';
 import { useApp } from '../state/AppProvider';
-import { Button, CheckCircle, Chip, IconButton, IconName, ProgressBar, T } from '../ui/components';
+import { Button, CheckCircle, Chip, IconButton, IconName, T } from '../ui/components';
 import { useHaptics } from '../ui/haptics';
 import { SIDE, colors, radius, space } from '../ui/theme';
 
@@ -136,6 +137,8 @@ export default function Onboarding() {
   };
 
   const enter = reduceMotion ? undefined : FadeIn.duration(220);
+  // The first two steps are short, so they sit in the middle of the screen.
+  const intro = step === 'welcome' || step === 'signin';
   const canContinue = ['quit', 'build', 'details', 'distractions', 'length', 'why'].includes(step);
 
   return (
@@ -147,23 +150,22 @@ export default function Onboarding() {
         ) : (
           <View style={{ width: 36 }} />
         )}
-        <View style={{ flex: 1 }}>
-          <ProgressBar progress={(i + 1) / steps.length} />
-        </View>
+        <View style={{ flex: 1 }} />
         {redo ? <IconButton name="close" label="Close" size={36} onPress={() => router.back()} /> : <View style={{ width: 36 }} />}
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: space.xl }} keyboardShouldPersistTaps="handled">
-        <Animated.View key={step} entering={enter} style={{ gap: space.l }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={[{ paddingVertical: space.xl }, intro && styles.introScroll]} keyboardShouldPersistTaps="handled">
+        <Animated.View key={step} entering={enter} style={[{ gap: space.l }, intro && styles.intro]}>
           {step === 'welcome' ? (
             <>
-              <T v="largeTitle" accessibilityRole="header">
+              <Image source={require('../../assets/icon.png')} style={styles.logo} accessibilityIgnoresInvertColors />
+              <T v="largeTitle" accessibilityRole="header" style={styles.center}>
                 {APP_NAME}
               </T>
-              <T v="title2" color={colors.secondary}>
+              <T v="title2" color={colors.secondary} style={styles.center}>
                 Your winter arc starts now.
               </T>
-              <T v="callout" color={colors.secondary}>
+              <T v="callout" color={colors.secondary} style={styles.center}>
                 A few questions about what you want to quit and what you want to build. Then {APP_NAME} sets itself up
                 around you: the right habits, the right apps blocked, and a clear finish line.
               </T>
@@ -172,10 +174,10 @@ export default function Onboarding() {
 
           {step === 'signin' ? (
             <>
-              <T v="title" accessibilityRole="header">
+              <T v="title" accessibilityRole="header" style={styles.center}>
                 Sign in to start
               </T>
-              <T v="callout" color={colors.secondary}>
+              <T v="callout" color={colors.secondary} style={styles.center}>
                 Your account keeps your arc yours. Your habits, tasks and notes stay on this phone.
               </T>
             </>
@@ -475,6 +477,10 @@ const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.bg },
   inner: { flex: 1, paddingHorizontal: SIDE },
   top: { flexDirection: 'row', alignItems: 'center', gap: space.m },
+  introScroll: { flexGrow: 1, justifyContent: 'center' },
+  intro: { alignItems: 'center' },
+  center: { textAlign: 'center' },
+  logo: { width: 96, height: 96, borderRadius: 22 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s },
   option: {
     width: '48.5%',
