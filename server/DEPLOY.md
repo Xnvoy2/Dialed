@@ -22,11 +22,19 @@ Background jobs run two ways: Vercel Cron calls `/v1/cron/tick`, and every
 session award or payout request settles itself right away in the background
 (`waitUntil`), so payouts don't wait for the cron.
 
-1. **vercel.com → Add New → Project → Import** `Xnvoy2/Dialed`.
-   Set **Root Directory** to `lockin/server`. Framework is detected as Fastify.
+The project is **`dialed-api`** on the `xnvoyvfx-2239` account
+(https://dialed-api-ten.vercel.app). It's set up with Root Directory `server`
+(the repo root is `lockin/`), framework Fastify, Node 22. `lockin/.vercelignore`
+makes CLI deploys upload only `server/`.
+
+1. **Deploy on push (optional):** Vercel → Account Settings → Authentication →
+   connect GitHub, then run `vercel git connect` in `lockin/`. Until then,
+   deploy from `lockin/` with `vercel deploy --prod`.
 2. **Storage → Marketplace → Neon (Postgres)** → connect it to this project.
    It adds `DATABASE_URL` for you. Tables are created on first request.
-3. **Settings → Environment Variables** (Production), mark secrets *Sensitive*:
+3. **Environment Variables** (Production). Already set: everything below except
+   `DIALED_SIGNER_KEY`; the two secrets were generated randomly and stored as
+   Sensitive. If you set things up from scratch, use:
 
 ```
 DIALED_ENV=production

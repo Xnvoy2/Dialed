@@ -1,0 +1,8 @@
+# Only the API in server/ is deployed to Vercel.
+/*
+!/server
+/server/node_modules
+/server/test
+/server/scripts
+/server/.env*
+/server/*keypair*.json
