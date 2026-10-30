@@ -107,7 +107,7 @@ export function GlowBar({ progress, width = 220, height = 44 }: { progress: numb
     >
       <Animated.View style={[styles.fill, { height: height - 8, borderRadius: (height - 8) / 2 }, fill]}>
         <LinearGradient
-          colors={['#F4F7FF', '#B9CCFF']}
+          colors={['#6A9BFF', '#2F63F0']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={[StyleSheet.absoluteFill, { borderRadius: (height - 8) / 2 }]}

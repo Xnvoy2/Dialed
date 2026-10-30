@@ -93,7 +93,7 @@ export function CelebrationSheet({
               style={({ pressed }) => [styles.cta, pressed && { transform: [{ scale: 0.97 }] }]}
             >
               <LinearGradient
-                colors={['#F4F7FF', '#B9CCFF']}
+                colors={['#6A9BFF', '#2F63F0']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={[StyleSheet.absoluteFill, { borderRadius: 28 }]}
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 10,
     paddingBottom: 8,
-    backgroundColor: '#111113',
+    backgroundColor: colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderStrong,
     overflow: 'hidden',
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: colors.text,
+    backgroundColor: colors.accent,
     marginTop: 4,
   },
   cta: {

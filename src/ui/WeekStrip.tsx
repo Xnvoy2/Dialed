@@ -59,7 +59,7 @@ export function DayDot({ status, size, isToday }: { status: DayStatus; size: num
   switch (status) {
     case 'done':
       return (
-        <View style={[base, { backgroundColor: colors.text }]}>
+        <View style={[base, { backgroundColor: colors.accent }]}>
           <Ionicons name="checkmark" size={size * 0.55} color={colors.onPrimary} />
         </View>
       );

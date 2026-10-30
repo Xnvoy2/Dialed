@@ -205,7 +205,7 @@ function FutureRest({ habitId }: { habitId: string }) {
               accessibilityRole="button"
               accessibilityState={{ selected: rest }}
               accessibilityLabel={`${formatDayLong(d)}${rest ? ', rest day' : ''}`}
-              style={[styles.restChip, rest && { backgroundColor: colors.text }]}
+              style={[styles.restChip, rest && { backgroundColor: colors.accent }]}
             >
               <T v="caption" color={rest ? colors.onPrimary : colors.secondary}>
                 {weekdayInitial(d)}
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   weekRow: { flexDirection: 'row', justifyContent: 'space-between' },
   cellLabel: { width: 42, textAlign: 'center' },
   cell: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 21 },
-  cellSelected: { borderWidth: 1.5, borderColor: colors.text },
+  cellSelected: { borderWidth: 1.5, borderColor: colors.accent },
   num: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   legend: { flexDirection: 'row', gap: space.l, marginTop: space.m },
   restChip: {

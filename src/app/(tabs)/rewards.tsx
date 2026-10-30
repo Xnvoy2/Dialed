@@ -421,7 +421,7 @@ function NotConfigured() {
 
 const styles = StyleSheet.create({
   badgeRow: { paddingHorizontal: SIDE, flexDirection: 'row' },
-  badge: { backgroundColor: colors.text, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  badge: { backgroundColor: colors.accent, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   cols: {
     flexDirection: 'row',
     gap: space.m,

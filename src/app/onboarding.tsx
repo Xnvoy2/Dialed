@@ -275,7 +275,7 @@ export default function Onboarding() {
                   <T v="title2" color={a.lengthDays === n ? colors.onPrimary : colors.text}>
                     {n} days
                   </T>
-                  <T v="footnote" color={a.lengthDays === n ? '#46464B' : colors.secondary}>
+                  <T v="footnote" color={a.lengthDays === n ? colors.borderStrong : colors.secondary}>
                     {n === 30 ? 'A focused month' : n === 60 ? 'Long enough to stick' : 'The full winter arc'}
                   </T>
                 </Pressable>
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     justifyContent: 'center',
   },
-  selected: { backgroundColor: colors.text },
+  selected: { backgroundColor: colors.accent },
   length: { padding: space.l, borderRadius: radius.l, backgroundColor: colors.surface, gap: 2 },
   input: {
     fontSize: 18,

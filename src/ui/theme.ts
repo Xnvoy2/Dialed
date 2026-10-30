@@ -1,20 +1,22 @@
 import { TextStyle } from 'react-native';
 
-/** Charcoal and white. No accent colour by design. */
+/** Night navy, electric blue and white, from the Dialed brand. */
 export const colors = {
-  bg: '#050506',
-  surface: '#1C1C1E',
-  surfaceRaised: '#2A2A2D',
-  surfacePressed: '#313134',
-  border: '#262629',
-  borderStrong: '#3E3E43',
-  track: '#2C2C2F',
+  bg: '#0A081E',
+  surface: '#141433',
+  surfaceRaised: '#1C1D45',
+  surfacePressed: '#24265A',
+  border: '#1F2150',
+  borderStrong: '#343873',
+  track: '#222452',
   text: '#FFFFFF',
-  secondary: '#A1A1A6',
-  tertiary: '#6E6E73',
-  onPrimary: '#121213',
-  dock: 'rgba(36,36,39,0.86)',
-  dockActive: 'rgba(255,255,255,0.10)',
+  secondary: '#A7ABD0',
+  tertiary: '#6C7099',
+  /** Electric blue: progress, selection and primary actions. */
+  accent: '#3D7BFF',
+  onPrimary: '#FFFFFF',
+  dock: 'rgba(20,20,51,0.88)',
+  dockActive: 'rgba(61,123,255,0.18)',
 } as const;
 
 export const space = { xs: 4, s: 8, m: 12, l: 16, xl: 20, xxl: 28, xxxl: 40 } as const;

@@ -3,6 +3,7 @@ import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import React from 'react';
 import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useApp } from '../state/AppProvider';
+import { colors } from './theme';
 
 let liquid: boolean | null = null;
 /** iOS 26+ has Apple's Liquid Glass. Older iOS gets a blur that looks close. */
@@ -26,7 +27,7 @@ export function Glass({
   children,
   style,
   radius = 26,
-  tint = 'rgba(28,28,30,0.42)',
+  tint = 'rgba(20,20,51,0.42)',
   interactive,
   onPress,
   accessibilityLabel,
@@ -45,7 +46,7 @@ export function Glass({
   const { reduceMotion } = useApp();
   const shape = { borderRadius: radius, overflow: 'hidden' as const };
   const surface = reduceMotion ? (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#1C1C1E' }]} />
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />
   ) : hasLiquidGlass() ? (
     <GlassView
       style={StyleSheet.absoluteFill}
@@ -57,7 +58,7 @@ export function Glass({
   ) : (
     <>
       <BlurView tint="dark" intensity={45} style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(30,30,32,0.55)' }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(20,20,51,0.55)' }]} />
     </>
   );
   const body = (

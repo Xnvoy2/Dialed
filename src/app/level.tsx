@@ -141,5 +141,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.surfaceRaised,
   },
-  rungNow: { backgroundColor: colors.text },
+  rungNow: { backgroundColor: colors.accent },
 });

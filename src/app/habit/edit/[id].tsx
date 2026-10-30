@@ -79,7 +79,7 @@ export default function HabitEditor() {
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: on }}
                   accessibilityLabel={DAY_LONG[d]}
-                  style={[styles.day, on && { backgroundColor: colors.text, borderColor: colors.text }]}
+                  style={[styles.day, on && { backgroundColor: colors.accent, borderColor: colors.accent }]}
                 >
                   <T v="headline" color={on ? colors.onPrimary : colors.text}>
                     {DAY_NAMES[d]}

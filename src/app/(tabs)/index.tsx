@@ -380,9 +380,9 @@ function FocusWeekCard({ days }: { days: ReadonlySet<DayKey> }) {
               <View
                 style={[
                   styles.dayDot,
-                  hit && { backgroundColor: colors.text },
+                  hit && { backgroundColor: colors.accent },
                   !hit && !future && !isToday && { backgroundColor: colors.track },
-                  !hit && isToday && { borderWidth: 2, borderColor: colors.text },
+                  !hit && isToday && { borderWidth: 2, borderColor: colors.accent },
                   future && { borderWidth: 1, borderColor: colors.border },
                 ]}
               >
@@ -605,7 +605,7 @@ function ActiveSessionBanner() {
         <T v="headline" color={colors.onPrimary} numberOfLines={1}>
           {label}
         </T>
-        <T v="footnote" color="#46464B">
+        <T v="footnote" color="rgba(255,255,255,0.75)">
           {session.status === 'paused' ? 'Paused' : session.kind === 'break' ? 'On a break' : 'Focusing now'}
         </T>
       </View>
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: colors.text,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.text,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -655,7 +655,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: colors.onPrimary,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -670,7 +670,7 @@ const styles = StyleSheet.create({
     marginHorizontal: SIDE - 4,
     padding: space.m,
     borderRadius: radius.l,
-    backgroundColor: colors.text,
+    backgroundColor: colors.accent,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.m,
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: colors.onPrimary,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.m,
     paddingVertical: 6,
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.16)',
   },
   doneToggle: {
     flexDirection: 'row',

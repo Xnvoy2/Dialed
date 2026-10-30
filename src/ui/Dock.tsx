@@ -21,7 +21,7 @@ const ICONS: Record<string, [IconName, IconName]> = {
 const LABELS: Record<string, string> = { index: 'Today', habits: 'Habits', progress: 'Progress', rewards: 'Rewards' };
 const SPRING = { damping: 22, stiffness: 260, mass: 0.9 };
 const H = 64;
-const SOLID = '#18181A';
+const SOLID = '#141433';
 
 /**
  * Solid floating pill with a separate round Lock-in button. Opaque so page

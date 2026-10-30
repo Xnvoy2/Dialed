@@ -253,7 +253,7 @@ export function Button({
       accessibilityState={{ disabled: !!(disabled || loading) }}
       style={({ pressed }) => [
         styles.button,
-        kind === 'primary' && { backgroundColor: colors.text },
+        kind === 'primary' && { backgroundColor: colors.accent },
         kind === 'secondary' && { backgroundColor: colors.surfaceRaised },
         kind === 'plain' && { backgroundColor: 'transparent' },
         pressed && { opacity: 0.75, transform: [{ scale: 0.98 }] },
@@ -297,7 +297,7 @@ export function IconButton({
           borderRadius: size / 2,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: filled ? colors.text : colors.surfaceRaised,
+          backgroundColor: filled ? colors.accent : colors.surfaceRaised,
         },
         pressed && { opacity: 0.6 },
         style,
@@ -327,7 +327,7 @@ export function Chip({
       accessibilityState={{ selected }}
       style={({ pressed }) => [
         styles.chip,
-        selected && { backgroundColor: colors.text, borderColor: colors.text },
+        selected && { backgroundColor: colors.accent, borderColor: colors.accent },
         pressed && { opacity: 0.7 },
       ]}
     >
@@ -436,8 +436,8 @@ export function ToggleRow({
         onValueChange={onChange}
         disabled={disabled}
         accessibilityLabel={title}
-        trackColor={{ false: colors.surfacePressed, true: '#E5E5EA' }}
-        thumbColor={value ? colors.onPrimary : '#F2F2F7'}
+        trackColor={{ false: colors.surfacePressed, true: colors.accent }}
+        thumbColor="#FFFFFF"
         ios_backgroundColor={colors.surfacePressed}
       />
     </View>
@@ -470,8 +470,8 @@ export function CheckCircle({
           height: size,
           borderRadius: size / 2,
           borderWidth: 1.5,
-          borderColor: checked ? colors.text : colors.borderStrong,
-          backgroundColor: checked ? colors.text : 'transparent',
+          borderColor: checked ? colors.accent : colors.borderStrong,
+          backgroundColor: checked ? colors.accent : 'transparent',
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -551,7 +551,7 @@ export function ProgressBar({ progress, height = 4 }: { progress: number; height
   const p = Math.max(0, Math.min(1, progress));
   return (
     <View style={{ height, borderRadius: height, backgroundColor: colors.track, overflow: 'hidden' }}>
-      <View style={{ width: `${p * 100}%`, height, borderRadius: height, backgroundColor: colors.text }} />
+      <View style={{ width: `${p * 100}%`, height, borderRadius: height, backgroundColor: colors.accent }} />
     </View>
   );
 }
@@ -571,7 +571,7 @@ export function PillMeter({ done, total, max = 10 }: { done: number; total: numb
             maxWidth: 52,
             height: 30,
             borderRadius: 15,
-            backgroundColor: i < filled ? colors.text : colors.track,
+            backgroundColor: i < filled ? colors.accent : colors.track,
           }}
         />
       ))}
