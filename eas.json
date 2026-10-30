@@ -1,0 +1,22 @@
+{
+  "cli": {
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": { "DIALED_API_URL": "https://dialed-api-ten.vercel.app" }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": { "DIALED_API_URL": "https://dialed-api-ten.vercel.app" }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

@@ -45,7 +45,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: bundleId.replace(/-/g, '_'),
     adaptiveIcon: {
-      backgroundColor: '#161617',
+      backgroundColor: '#000000',
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
       monochromeImage: './assets/android-icon-monochrome.png',
@@ -57,7 +57,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-sqlite',
     'expo-sharing',
     'expo-localization',
-    ['expo-splash-screen', { backgroundColor: '#161617', image: './assets/splash-icon.png', imageWidth: 120 }],
+    ['expo-splash-screen', { backgroundColor: '#161617', image: './assets/splash-icon.png', imageWidth: 88 }],
     ['expo-notifications', { enableBackgroundRemoteNotifications: false }],
     ['expo-build-properties', { ios: { deploymentTarget: '17.6' } }],
     'expo-apple-authentication',
