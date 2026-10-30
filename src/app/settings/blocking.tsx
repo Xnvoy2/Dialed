@@ -8,6 +8,7 @@ import { getOpenSession } from '../../repos/sessions';
 import { useApp } from '../../state/AppProvider';
 import { Button, Group, Note, Row, SectionHeader, T, Tiles, ToggleRow } from '../../ui/components';
 import { SIDE, colors, space } from '../../ui/theme';
+import { SheetHeader } from '../../ui/SheetHeader';
 
 export default function BlockingSettings() {
   const insets = useSafeAreaInsets();
@@ -59,7 +60,8 @@ export default function BlockingSettings() {
   };
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+    <ScrollView style={{ backgroundColor: colors.bg }} contentInsetAdjustmentBehavior="never" contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+      <SheetHeader title="App blocking" action="back" />
       <View style={{ padding: SIDE, gap: space.s }}>
         <T v="subhead" color={colors.secondary}>
           Optionally shield chosen apps while you focus, using Apple’s Screen Time. You pick the apps in Apple’s own

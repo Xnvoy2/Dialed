@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_NAME } from '../../config/app';
 import { IconBubble, IconName, T, Tiles } from '../../ui/components';
 import { colors, space } from '../../ui/theme';
+import { SheetHeader } from '../../ui/SheetHeader';
 
 const SECTIONS: [IconName, string, string][] = [
   [
@@ -29,7 +30,8 @@ const SECTIONS: [IconName, string, string][] = [
 export default function Privacy() {
   const insets = useSafeAreaInsets();
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ paddingTop: space.s, paddingBottom: insets.bottom + 40 }}>
+    <ScrollView style={{ backgroundColor: colors.bg }} contentInsetAdjustmentBehavior="never" contentContainerStyle={{ paddingTop: space.s, paddingBottom: insets.bottom + 40 }}>
+      <SheetHeader title="Privacy" action="back" />
       <Tiles>
         {SECTIONS.map(([icon, h, b]) => (
           <View key={h} style={{ flexDirection: 'row', gap: space.m, padding: space.l }}>

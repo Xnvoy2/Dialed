@@ -20,6 +20,7 @@ import { getOpenSession } from '../../repos/sessions';
 import { useApp } from '../../state/AppProvider';
 import { Card, Row, SectionHeader, SegmentRow, StepperRow, T, Tiles, ToggleRow } from '../../ui/components';
 import { colors, space } from '../../ui/theme';
+import { SheetHeader } from '../../ui/SheetHeader';
 
 export default function Settings() {
   const insets = useSafeAreaInsets();
@@ -118,7 +119,8 @@ export default function Settings() {
   };
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ paddingBottom: insets.bottom + 40, paddingTop: space.s }}>
+    <ScrollView style={{ backgroundColor: colors.bg }} contentInsetAdjustmentBehavior="never" contentContainerStyle={{ paddingBottom: insets.bottom + 40, paddingTop: space.s }}>
+      <SheetHeader title="Settings" action="done" />
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.l, padding: space.xl }}>
         <View style={styles.avatar}>
           <Ionicons name="person" size={26} color={colors.text} />
