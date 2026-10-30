@@ -36,9 +36,7 @@ import {
   EmptyState,
   IconButton,
   IconName,
-  PillMeter,
   ProgressBar,
-  Ring,
   RingIcon,
   Row,
   SectionHeader,
@@ -90,7 +88,8 @@ export default function TodayScreen() {
 
   const toggleTask = (t: Task) => {
     setTaskCompleted(db, t.id, !t.completedAt);
-    t.completedAt ? haptics.select() : haptics.success();
+    if (t.completedAt) haptics.select();
+    else haptics.success();
     refresh();
   };
 

@@ -42,6 +42,8 @@
     "@bacons/apple-targets": "^5.0.0",
     "@types/node": "^24.19.2",
     "@types/react": "~19.3.0",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~58.0.4",
     "typescript": "~6.0.3",
     "vitest": "^5.0.5"
   },
@@ -52,7 +54,8 @@
     "prebuild": "expo prebuild --clean",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "tsc --noEmit && vitest run"
+    "check": "tsc --noEmit && vitest run",
+    "lint": "eslint src"
   },
   "private": true
 }

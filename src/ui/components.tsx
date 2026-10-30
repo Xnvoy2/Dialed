@@ -3,7 +3,6 @@ import React, { useEffect } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  PressableProps,
   StyleProp,
   StyleSheet,
   Switch,

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { DayKey, addDays, formatRange, startOfWeek } from '../../domain/dates';
 import { DayStatus, WeekSummary, consistency, describeSchedule, summarizeWeek } from '../../domain/habits';
 import type { Habit } from '../../repos/habits';

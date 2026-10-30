@@ -28,7 +28,6 @@ import {
   CheckCircle,
   Chip,
   FadeEdge,
-  Group,
   IconBubble,
   IconButton,
   Note,
@@ -476,16 +475,24 @@ function Completion({ session, onReset }: { session: FocusSession; onReset: () =
   const pausedMin = Math.round(
     session.pauses.reduce((sum, p) => sum + ((p.resumedAt ?? session.endedAt ?? p.pausedAt) - p.pausedAt), 0) / 60000,
   );
+  // A tick only for things that went well; ending early or missing blocking gets its own icon.
   const facts = [
     completed
-      ? `Focused the full ${formatMinutes(session.plannedSeconds)}`
-      : `Focused ${formatMinutes(active)} of ${formatMinutes(session.plannedSeconds)}`,
-    session.pauses.length
-      ? `${session.pauses.length} pause${session.pauses.length === 1 ? '' : 's'}, ${pausedMin} min not counted`
-      : 'No pauses',
-    session.blockingRequested ? (session.blockingApplied ? 'Chosen apps were blocked' : 'App blocking wasn’t applied') : null,
-    shieldSummary(session.backToFocusCount, session.deliberateExitCount),
-  ].filter(Boolean) as string[];
+      ? { text: `Focused the full ${formatMinutes(session.plannedSeconds)}`, icon: 'checkmark' as const }
+      : { text: `Focused ${formatMinutes(active)} of ${formatMinutes(session.plannedSeconds)}`, icon: 'time-outline' as const },
+    {
+      text: session.pauses.length
+        ? `${session.pauses.length} pause${session.pauses.length === 1 ? '' : 's'}, ${pausedMin} min not counted`
+        : 'No pauses',
+      icon: session.pauses.length ? ('pause-outline' as const) : ('checkmark' as const),
+    },
+    session.blockingRequested
+      ? session.blockingApplied
+        ? { text: 'Chosen apps were blocked', icon: 'checkmark' as const }
+        : { text: 'App blocking wasn’t applied', icon: 'alert-circle-outline' as const }
+      : null,
+    ((s) => (s ? { text: s, icon: 'checkmark' as const } : null))(shieldSummary(session.backToFocusCount, session.deliberateExitCount)),
+  ].filter((f): f is { text: string; icon: 'checkmark' | 'time-outline' | 'pause-outline' | 'alert-circle-outline' } => !!f);
 
   return (
     <View style={[styles.fill, { paddingTop: insets.top }]}>
@@ -522,10 +529,10 @@ function Completion({ session, onReset }: { session: FocusSession; onReset: () =
 
         <View style={{ gap: space.s, alignItems: 'center' }}>
           {facts.map((f) => (
-            <View key={f} style={{ flexDirection: 'row', gap: space.s, alignItems: 'center' }}>
-              <Ionicons name="checkmark" size={16} color={colors.secondary} />
+            <View key={f.text} style={{ flexDirection: 'row', gap: space.s, alignItems: 'center' }}>
+              <Ionicons name={f.icon} size={16} color={colors.secondary} />
               <T v="subhead" color={colors.secondary}>
-                {f}
+                {f.text}
               </T>
             </View>
           ))}
