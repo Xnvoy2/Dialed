@@ -29,14 +29,15 @@ import {
 import { blocking } from '../native/blocking';
 import { selectionCount } from '../native/blocking/types';
 
-/** False on builds without Screen Time blocking, so the plan doesn't offer it. */
-const canBlock = blocking.availability().state !== 'unsupported';
 import { applyPlan } from '../repos/arc';
 import { connectDev, connectWithApple } from '../state/rewards';
 import { useApp } from '../state/AppProvider';
 import { Button, CheckCircle, Chip, IconButton, IconName, T } from '../ui/components';
 import { useHaptics } from '../ui/haptics';
 import { SIDE, colors, radius, space } from '../ui/theme';
+
+/** False on builds without Screen Time blocking, so the plan doesn't offer it. */
+const canBlock = blocking.availability().state !== 'unsupported';
 
 type Step = 'welcome' | 'signin' | 'quit' | 'build' | 'details' | 'distractions' | 'length' | 'why' | 'plan' | 'setup';
 
@@ -178,10 +179,10 @@ export default function Onboarding() {
           {step === 'signin' ? (
             <>
               <T v="title" accessibilityRole="header" style={styles.center}>
-                Sign in to start
+                Sign in for rewards
               </T>
               <T v="callout" color={colors.secondary} style={styles.center}>
-                Your account keeps your arc yours. Your habits, tasks and notes stay on this phone.
+                An account lets you join rewards. Everything else works without one, and your habits, tasks and notes stay on this phone.
               </T>
             </>
           ) : null}
@@ -376,18 +377,18 @@ export default function Onboarding() {
               style={{ height: 52 }}
               onPress={signIn}
             />
-            {__DEV__ ? (
-              <Button
-                title="Skip (development build only)"
-                kind="plain"
-                onPress={() => {
+            <Button
+              title="Not now"
+              kind="plain"
+              onPress={() => {
+                if (__DEV__) {
                   connectDev()
                     .then((u) => u && setPrefs({ serverUserId: u.id }))
                     .catch(() => {});
-                  next();
-                }}
-              />
-            ) : null}
+                }
+                next();
+              }}
+            />
           </>
         ) : null}
         {canContinue ? <Button title="Continue" onPress={next} /> : null}

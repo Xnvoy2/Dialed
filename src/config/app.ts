@@ -6,5 +6,5 @@ export const APP_VERSION: string = Constants.expoConfig?.version ?? '0.0.0';
 /** Simulated rewards may only ever exist in development builds. */
 export const DEMO_REWARDS_ALLOWED: boolean = __DEV__;
 
-/** Sign in with Apple is required before setup. See app.config.ts. */
+/** Show the Sign in with Apple step during setup. It can always be skipped. See app.config.ts. */
 export const REQUIRE_SIGN_IN: boolean = (Constants.expoConfig?.extra?.requireSignIn as boolean | undefined) ?? true;

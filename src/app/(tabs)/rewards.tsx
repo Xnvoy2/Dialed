@@ -133,7 +133,7 @@ export default function RewardsScreen() {
     try {
       const u = await connectDev();
       if (u) setPrefs({ serverUserId: u.id });
-      else Alert.alert('Sign in needed', 'Redo setup from Settings and sign in with Apple to join rewards.');
+      else Alert.alert('Sign in needed', 'Use Sign in with Apple below to join rewards.');
     } catch (e) {
       Alert.alert('Couldn’t connect', (e as Error).message);
     } finally {

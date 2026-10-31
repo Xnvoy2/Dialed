@@ -46,3 +46,4 @@ yarn-error.*
 build/
 .vercel
 .env*
+store-screenshots/
