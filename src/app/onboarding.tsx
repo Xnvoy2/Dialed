@@ -28,6 +28,9 @@ import {
 } from '../domain/arc';
 import { blocking } from '../native/blocking';
 import { selectionCount } from '../native/blocking/types';
+
+/** False on builds without Screen Time blocking, so the plan doesn't offer it. */
+const canBlock = blocking.availability().state !== 'unsupported';
 import { applyPlan } from '../repos/arc';
 import { connectDev, connectWithApple } from '../state/rewards';
 import { useApp } from '../state/AppProvider';
@@ -68,8 +71,8 @@ export default function Onboarding() {
   // Everything in the plan starts ticked whenever the plan changes.
   useEffect(() => {
     const k = new Set(plan.habits.map((h) => h.key));
-    if (plan.blockDuringLockIn) k.add('block');
-    if (plan.adultFilter) k.add('adult');
+    if (plan.blockDuringLockIn && canBlock) k.add('block');
+    if (plan.adultFilter && canBlock) k.add('adult');
     setKeep(k);
   }, [plan]);
 
@@ -318,7 +321,7 @@ export default function Onboarding() {
                     onToggle={() => setKeep(toggleSet(keep, h.key))}
                   />
                 ))}
-                {plan.blockDuringLockIn ? (
+                {plan.blockDuringLockIn && canBlock ? (
                   <PlanRow
                     title="Block distracting apps when you lock in"
                     sub="You choose the apps next"
@@ -326,7 +329,7 @@ export default function Onboarding() {
                     onToggle={() => setKeep(toggleSet(keep, 'block'))}
                   />
                 ) : null}
-                {plan.adultFilter ? (
+                {plan.adultFilter && canBlock ? (
                   <PlanRow
                     title="Block adult websites, always"
                     sub="Apple’s Screen Time filter in Safari and other browsers"

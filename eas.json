@@ -9,11 +9,17 @@
     },
     "preview": {
       "distribution": "internal",
-      "env": { "DIALED_API_URL": "https://dialed-api-ten.vercel.app" }
+      "env": {
+        "DIALED_API_URL": "https://dialed-api-ten.vercel.app",
+        "DIALED_BLOCKING": "0"
+      }
     },
     "production": {
       "autoIncrement": true,
-      "env": { "DIALED_API_URL": "https://dialed-api-ten.vercel.app" }
+      "env": {
+        "DIALED_API_URL": "https://dialed-api-ten.vercel.app",
+        "DIALED_BLOCKING": "0"
+      }
     }
   },
   "submit": {

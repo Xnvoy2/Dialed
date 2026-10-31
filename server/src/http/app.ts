@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import type { JWTVerifyGetKey } from 'jose';
 import { z, ZodError } from 'zod';
 import { checkDevice, newChallenge, registerKey } from '../attest/devices.js';
+import { registerLegalPages } from './legal.js';
 import { authenticate, issueSession, upsertUser, verifyAppleToken } from '../auth/auth.js';
 import type { Config } from '../config.js';
 import { withTx, type Db } from '../db/pool.js';
@@ -96,6 +97,7 @@ export async function buildApp({ db, cfg, appleKeys, attestRootPem, tick, onMone
     return id;
   };
 
+  registerLegalPages(app);
   app.get('/v1/health', async () => ({ ok: true, network: cfg.network, env: cfg.env, attest: cfg.requireAttest }));
 
   // -------------------------------------------------------------- jobs

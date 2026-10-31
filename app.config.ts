@@ -10,6 +10,10 @@ const bundleId = process.env.LOCKIN_BUNDLE_ID ?? 'com.joshbarton.dialed';
 // Team from the sibling calorieearn project; override for another account.
 const appleTeamId = process.env.APPLE_TEAM_ID ?? 'PPNNNASZJX';
 const appGroup = `group.${bundleId}`;
+// App blocking (Screen Time) needs Apple's Family Controls distribution approval
+// before TestFlight/App Store builds can be signed. DIALED_BLOCKING=0 leaves the
+// entitlement and extensions out; the app then shows blocking as unavailable.
+const blockingOn = process.env.DIALED_BLOCKING !== '0';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -38,7 +42,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     entitlements: {
       // Development signing works without Apple's approval. TestFlight/App Store
       // need the distribution entitlement approved for the app AND each extension.
-      'com.apple.developer.family-controls': true,
+      ...(blockingOn ? { 'com.apple.developer.family-controls': true } : {}),
       'com.apple.security.application-groups': [appGroup],
     },
   },
@@ -62,7 +66,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ['expo-build-properties', { ios: { deploymentTarget: '17.6' } }],
     'expo-apple-authentication',
     'expo-secure-store',
-    '@bacons/apple-targets',
+    ...(blockingOn ? ['@bacons/apple-targets'] : []),
   ],
   experiments: { typedRoutes: false },
   extra: {
@@ -72,5 +76,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     requireSignIn: true,
     displayName,
     appGroup,
+    /** False when this build was made without Screen Time blocking. */
+    blocking: blockingOn,
   },
 });

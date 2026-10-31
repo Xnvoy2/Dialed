@@ -1,8 +1,13 @@
-import Native from '../../../modules/lockin-blocking/src/LockinBlockingModule';
+import Constants from 'expo-constants';
+import NativeModule from '../../../modules/lockin-blocking/src/LockinBlockingModule';
 import { BlockingAvailability, BlockingProvider, selectionCount } from './types';
 
-const MISSING =
-  'Needs the iOS development build. Expo Go cannot include Screen Time code.';
+/** Builds made with DIALED_BLOCKING=0 (before Apple approves Family Controls) have no blocking. */
+const builtWithout = Constants.expoConfig?.extra?.blocking === false;
+const Native = builtWithout ? null : NativeModule;
+const MISSING = builtWithout
+  ? 'App blocking is coming in an update.'
+  : 'Needs the iOS development build. Expo Go cannot include Screen Time code.';
 
 function availability(): BlockingAvailability {
   if (!Native) return { state: 'unsupported', reason: MISSING };
